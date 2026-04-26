@@ -152,7 +152,7 @@ $('nameInput').onkeydown = e => { if (e.key === 'Enter') $('joinBtn').click(); }
 function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); $(id).classList.add('active'); }
 
 function handle(m) {
-  if (m.type === 'joined') show('wait');
+  if (m.type === 'joined') { if (m.rejoined) show('play'); else show('wait'); }
   if (m.type === 'error') $('joinError').textContent = m.msg;
   if (m.type === 'lobby') show('wait');
 

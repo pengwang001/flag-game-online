@@ -37,8 +37,10 @@ let timerSec = 0;
 const MAX_CLUES = 5;
 const CLUE_INTERVAL = 5000; // 5s between clues
 
-function broadcast(msg) {
-  const s = JSON.stringify(msg);
+function activePlayers() { return players.filter(p => p.ws && p.ws.readyState === 1); }
+function activeCount() { return activePlayers().length; }
+
+function broadcast(msg) {  const s = JSON.stringify(msg);
   if (hostWs?.readyState === 1) hostWs.send(s);
   players.forEach(p => { if (p.ws?.readyState === 1) p.ws.send(s); });
 }
@@ -130,7 +132,7 @@ function sendQuestion() {
     const zhClues = currentQuestion.zhClues;
     clueIdx = 1;
     clueTimer = setInterval(() => {
-      if (clueIdx >= Math.min(MAX_CLUES, clues.length) || (players.length > 0 && answered.size >= players.length)) {
+      if (clueIdx >= Math.min(MAX_CLUES, clues.length) || (activeCount() > 0 && answered.size >= activeCount())) {
         clearInterval(clueTimer); return;
       }
       const reveal = { type: 'clue', clue: clues[clueIdx], clueNum: clueIdx + 1, points: MAX_CLUES - clueIdx };
@@ -148,7 +150,7 @@ function sendQuestion() {
     let timeLeft = timerSec;
     roundTimer = setInterval(() => {
       timeLeft -= 1;
-      if (answered.size >= players.length) { clearInterval(roundTimer); return; }
+      if (answered.size >= activeCount()) { clearInterval(roundTimer); return; }
       broadcast({ type: 'timer_tick', left: timeLeft, total: timerSec });
       if (timeLeft <= 0) {
         clearInterval(roundTimer);
@@ -215,16 +217,47 @@ wss.on('connection', (ws) => {
   ws.on('message', (raw) => {
     const msg = JSON.parse(raw);
 
-    if (msg.type === 'host') { isHost = true; hostWs = ws; lobbyState(); }
+    if (msg.type === 'host') {
+      isHost = true; hostWs = ws;
+      // If game was in progress, reset to lobby and clean stale players
+      if (state === 'playing' || state === 'result') {
+        clearInterval(clueTimer); clearTimeout(autoAdvanceTimer); clearInterval(roundTimer);
+        state = 'lobby';
+        // Remove players with dead connections
+        players = players.filter(p => p.ws && p.ws.readyState === 1);
+        players.forEach(p => p.score = 0);
+      }
+      lobbyState();
+    }
 
     if (msg.type === 'join') {
+      const name = msg.name || `Player ${nextId}`;
+      // Allow rejoin by name if game is in progress
+      if (state === 'playing') {
+        const existing = players.find(p => p.name === name);
+        if (existing) {
+          // Reconnect to existing slot
+          existing.ws = ws;
+          playerId = existing.id;
+          sendTo(ws, { type: 'joined', id: playerId, color: existing.color, rejoined: true });
+          // Send current question so they can catch up
+          if (currentQuestion) {
+            sendTo(ws, { type: 'question', gameType, round: questionIdx + 1, total: countries.length,
+              options: currentQuestion.options, points: Math.max(1, MAX_CLUES - clueIdx + 1), timer: timerSec,
+              flag: currentQuestion.flag, img: currentQuestion.img, topoName: currentQuestion.topoName, continent,
+              clues: currentQuestion.clues?.slice(0, clueIdx + 1),
+            });
+          }
+          return;
+        }
+        // New player during game — allow them to join for next round
+      }
       if (players.length >= 8) { sendTo(ws, { type: 'error', msg: 'Game full (8 max)' }); return; }
-      if (state === 'playing') { sendTo(ws, { type: 'error', msg: 'Game in progress' }); return; }
       playerId = nextId++;
-      const p = { id: playerId, name: msg.name || `Player ${playerId}`, ws, score: 0, color: COLORS[(players.length) % COLORS.length] };
+      const p = { id: playerId, name, ws, score: 0, color: COLORS[(players.length) % COLORS.length] };
       players.push(p);
       sendTo(ws, { type: 'joined', id: playerId, color: p.color });
-      lobbyState();
+      if (state === 'lobby') lobbyState();
     }
 
     if (msg.type === 'start' && isHost) {
@@ -275,7 +308,7 @@ wss.on('connection', (ws) => {
       });
       sendTo(ws, { type: 'answer_result', correct, correctAnswer: currentQuestion.name });
 
-      if (answered.size >= players.length) {
+      if (answered.size >= activeCount()) {
         clearInterval(clueTimer);
         clearInterval(roundTimer);
         sendTo(hostWs, {
@@ -293,8 +326,20 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
-    if (isHost) hostWs = null;
-    if (playerId) { players = players.filter(p => p.id !== playerId); if (state === 'lobby') lobbyState(); }
+    if (isHost) {
+      hostWs = null;
+      // Don't reset game — host might reconnect
+    }
+    if (playerId) {
+      // Mark player as disconnected but keep their slot for rejoin
+      const p = players.find(x => x.id === playerId);
+      if (p) p.ws = null;
+      // In lobby, remove them entirely
+      if (state === 'lobby') {
+        players = players.filter(x => x.id !== playerId);
+        lobbyState();
+      }
+    }
   });
 });
 
