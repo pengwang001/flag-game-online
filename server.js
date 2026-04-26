@@ -18,6 +18,8 @@ let CAPITALS;
 eval(fs.readFileSync(path.join(__dirname, 'capitals.js'), 'utf8').replace('const CAPITALS', 'CAPITALS'));
 eval(fs.readFileSync(path.join(__dirname, 'us-states-clues.js'), 'utf8').replace('const US_STATE_CLUES', 'US_STATE_CLUES'));
 eval(fs.readFileSync(path.join(__dirname, 'zh-us-clues.js'), 'utf8').replace('const ZH_US_STATE_CLUES', 'ZH_US_STATE_CLUES'));
+eval(fs.readFileSync(path.join(__dirname, 'food-data.js'), 'utf8').replace('const FOOD_DATA', 'FOOD_DATA'));
+eval(fs.readFileSync(path.join(__dirname, 'zh-food-clues.js'), 'utf8').replace('const ZH_FOOD_CLUES', 'ZH_FOOD_CLUES'));
 
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
@@ -61,7 +63,8 @@ function lobbyState() {
   const continents = Object.entries(DATA).map(([name, arr]) => ({ name, count: arr.length }));
   const mapContinents = Object.entries(MAP_CONTINENTS).map(([name, arr]) => ({ name, count: arr.length }));
   const capitalContinents = Object.entries(CAPITALS).map(([name, arr]) => ({ name, count: arr.length }));
-  broadcast({ type: 'lobby', players: players.map(p => ({ id: p.id, name: p.name, color: p.color })), showFlags, continents, mapContinents, capitalContinents, usStatesCount: US_STATES.length, caProvincesCount: CA_PROVINCES.length });
+  const foodContinents = Object.entries(FOOD_DATA).map(([name, arr]) => ({ name, count: arr.length }));
+  broadcast({ type: 'lobby', players: players.map(p => ({ id: p.id, name: p.name, color: p.color })), showFlags, continents, mapContinents, capitalContinents, usStatesCount: US_STATES.length, caProvincesCount: CA_PROVINCES.length, foodContinents });
 }
 
 let soloScore = 0;
@@ -179,6 +182,23 @@ function sendQuestion() {
       type: 'question', gameType: 'camap', round: questionIdx + 1, total: countries.length,
       stateName: q.name,
       options: currentQuestion.options, points: timerSec ? MAX_CLUES : 1, timer: timerSec,
+    };
+  } else if (gameType === 'food') {
+    const allFoods = Object.values(FOOD_DATA).flat();
+    const pool = allFoods.filter(f => f.country !== q.country);
+    const opts = shuffle([q.country, ...shuffle(pool).map(f => f.country).filter((v,i,a)=>a.indexOf(v)===i&&v!==q.country).slice(0, 3)]);
+    const origClues = q.clues;
+    const zhArr = ZH_FOOD_CLUES[q.dish] || [];
+    const indices = origClues.map((_,i) => i);
+    shuffle(indices);
+    const clues = indices.map(i => origClues[i]);
+    const zhClues = indices.map(i => zhArr[i] || origClues[i]);
+    currentQuestion = { name: q.country, clues, zhClues, options: opts };
+    base = {
+      type: 'question', gameType: 'food', round: questionIdx + 1, total: countries.length,
+      img: q.img, dish: q.dish,
+      clues: [clues[0]], zhClues: [zhClues[0]], clueNum: 1, maxClues: Math.min(MAX_CLUES, clues.length),
+      options: currentQuestion.options, points: MAX_CLUES, timer: timerSec,
     };
   }
 
@@ -355,6 +375,10 @@ wss.on('connection', (ws) => {
       } else if (gameType === 'camap') {
         roundsPerGame = Math.min(msg.rounds || 13, CA_PROVINCES.length);
         countries = shuffle([...CA_PROVINCES]).slice(0, roundsPerGame).map(n => ({ name: n }));
+      } else if (gameType === 'food') {
+        const pool = FOOD_DATA[continent] || [];
+        roundsPerGame = Math.min(msg.rounds || 10, pool.length);
+        countries = shuffle([...pool]).slice(0, roundsPerGame);
       }
       questionIdx = 0;
       players.forEach(p => p.score = 0);

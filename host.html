@@ -41,6 +41,7 @@ h1{font-size:2em;margin-bottom:10px;display:none}
 .gm-us{--gm-color:#ef4444;--gm-glow:rgba(239,68,68,.4)}
 .gm-ca{--gm-color:#ef4444;--gm-glow:rgba(239,68,68,.4)}
 .gm-local{--gm-color:#f472b6;--gm-glow:rgba(244,114,182,.4)}
+.gm-food{--gm-color:#f97316;--gm-glow:rgba(249,115,22,.4)}
 /* Options bar & toggle buttons */
 .options-bar{margin:0 auto 12px;max-width:600px}
 .opt-group{display:flex;align-items:center;gap:10px;justify-content:center;margin:6px 0;flex-wrap:wrap}
@@ -157,6 +158,10 @@ h1{font-size:2em;margin-bottom:10px;display:none}
       <div class="gm-icon gm-local"><span>📍</span></div>
       <div class="gm-label"><strong>LOCAL</strong><br>EXPLORER</div>
     </button>
+    <button class="gm-btn" data-mode="food" onclick="setGameMode('food')">
+      <div class="gm-icon gm-food"><span>🍽️</span></div>
+      <div class="gm-label"><strong>FOOD</strong><br>QUIZ</div>
+    </button>
   </div>
 
   <!-- Shared Options Bar -->
@@ -270,6 +275,22 @@ h1{font-size:2em;margin-bottom:10px;display:none}
     <p class="panel-desc">How well do you know Issaquah, Bellevue, Sammamish & Seattle?</p>
     <button class="start-btn" onclick="startLocal()">Start Local Explorer</button>
   </div>
+
+  <div id="foodOptions" class="mode-panel" style="display:none">
+    <p class="panel-desc">Guess which country a famous dish comes from!</p>
+    <h3 class="panel-title">Pick a continent:</h3>
+    <div id="foodContinents" class="continents"></div>
+    <div class="opt-group" style="margin-top:10px">
+      <span class="opt-label">Timer</span>
+      <div class="toggle-row" id="foodTimerSelect">
+        <button class="tog-btn active" onclick="pickFoodTimer(0)">No timer</button>
+        <button class="tog-btn" onclick="pickFoodTimer(15)">15s</button>
+        <button class="tog-btn" onclick="pickFoodTimer(20)">20s</button>
+        <button class="tog-btn" onclick="pickFoodTimer(30)">30s</button>
+      </div>
+    </div>
+    <button id="foodStartBtn" class="start-btn" disabled onclick="startFood()">Start Food Quiz</button>
+  </div>
 </div>
 
 <div id="game" class="screen">
@@ -305,6 +326,7 @@ let soloScore = 0;
 let selectedMapContinent = null;
 let selectedCapitalContinent = null;
 let selectedFlagquizContinent = null;
+let selectedFoodContinent = null;
 let currentGameMode = 'trivia';
 let allMapFeatures = null;
 const MAP_CONTINENTS_CLIENT = {};
@@ -406,6 +428,19 @@ function pickCamapTimer(s) {
 function startCamap() {
   ws.send(JSON.stringify({ type:'start', gameType:'camap', timer: selectedTimer, rounds: selectedRounds || 999 }));
 }
+function pickFoodContinent(c) {
+  selectedFoodContinent = c;
+  document.querySelectorAll('#foodContinents .cont-btn').forEach(b => b.classList.toggle('selected', b.textContent.startsWith(c)));
+  $('foodStartBtn').disabled = false;
+}
+function pickFoodTimer(s) {
+  selectedTimer = s;
+  document.querySelectorAll('#foodTimerSelect .tog-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
+}
+function startFood() {
+  if (!selectedFoodContinent) return;
+  ws.send(JSON.stringify({ type:'start', gameType:'food', continent: selectedFoodContinent, timer: selectedTimer, rounds: selectedRounds || 999 }));
+}
 function startLocal() {
   ws.send(JSON.stringify({ type:'start', gameType:'local', timer: selectedTimer, rounds: selectedRounds || 999 }));
 }
@@ -444,6 +479,7 @@ function setGameMode(mode) {
   $('usmapOptions').style.display = mode==='usmap' ? 'block' : 'none';
   $('camapOptions').style.display = mode==='camap' ? 'block' : 'none';
   $('localOptions').style.display = mode==='local' ? 'block' : 'none';
+  $('foodOptions').style.display = mode==='food' ? 'block' : 'none';
   document.querySelectorAll('.gm-btn').forEach(b => b.classList.toggle('active', b.dataset.mode===mode));
 }
 
@@ -584,6 +620,7 @@ function handleMsg(e) {
     $('mapStartBtn').disabled = !selectedMapContinent;
     $('capitalStartBtn').disabled = !selectedCapitalContinent;
     $('flagquizStartBtn').disabled = !selectedFlagquizContinent;
+    $('foodStartBtn').disabled = !selectedFoodContinent;
     // Re-apply game mode visibility
     setGameMode(currentGameMode);
     if (m.usStatesCount) $('usmapCount').textContent = `${m.usStatesCount} states`;
@@ -598,6 +635,11 @@ function handleMsg(e) {
       ).join('');
       $('flagquizContinents').innerHTML = m.capitalContinents.map(c =>
         `<button class="cont-btn${selectedFlagquizContinent===c.name?' selected':''}" onclick="pickFlagquizContinent('${c.name}')">${c.name} (${c.count})</button>`
+      ).join('');
+    }
+    if (m.foodContinents) {
+      $('foodContinents').innerHTML = m.foodContinents.map(c =>
+        `<button class="cont-btn${selectedFoodContinent===c.name?' selected':''}" onclick="pickFoodContinent('${c.name}')">${c.name} (${c.count})</button>`
       ).join('');
     }
   }
@@ -634,6 +676,10 @@ function handleMsg(e) {
     } else if (m.gameType === 'flagquiz') {
       $('clueList').innerHTML = `<div class="clue" style="font-size:1.5em">Which flag belongs to <b>${m.country}</b>?</div>`;
       $('pointsHint').textContent = m.timer ? `⚡ ${m.points} pts` : '⚡ 1 pt';
+    } else if (m.gameType === 'food') {
+      $('landmark').src = m.img; $('landmark').style.display = 'block';
+      $('clueList').innerHTML = `<div class="clue">💡 ${m.clues[0]}</div>`;
+      $('pointsHint').textContent = `⚡ ${m.points} pts`;
     } else if (m.gameType === 'usmap') {
       $('mapSvg').style.display='block';
       $('pointsHint').textContent = `⚡ ${m.points} pts`;

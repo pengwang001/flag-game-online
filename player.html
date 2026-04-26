@@ -207,6 +207,10 @@ function handle(m) {
     } else if (m.gameType === 'flagquiz') {
       $('clueList').innerHTML = `<div class="clue" style="font-size:1.2em">${lang==='zh'?`<b>${cn(m.country)}</b> 的国旗是哪个？`:`Which flag belongs to <b>${cn(m.country)}</b>?`}</div>`;
       $('pointsHint').textContent = m.timer ? `⚡ ${m.points} ${t('pts')}` : '⚡ 1 pt';
+    } else if (m.gameType === 'food') {
+      $('landmark').src = m.img; $('landmark').style.display = 'block';
+      $('clueList').innerHTML = `<div class="clue">💡 ${lang==='zh' && m.zhClues?.[0] ? m.zhClues[0] : m.clues[0]}</div>`;
+      $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
     } else if (m.gameType === 'usmap') {
       $('mapSvg').style.display='block';
       $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
