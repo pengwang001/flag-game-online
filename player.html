@@ -182,6 +182,9 @@ function handle(m) {
       $('flag').textContent = m.flag;
       $('clueList').innerHTML = `<div class="clue" style="font-size:1.2em">What is the capital of <b>${m.country}</b>?</div>`;
       $('pointsHint').textContent = m.timer ? `⚡ ${m.points} ${t('pts')}` : '⚡ 1 pt';
+    } else if (m.gameType === 'flagquiz') {
+      $('clueList').innerHTML = `<div class="clue" style="font-size:1.2em">Which flag belongs to <b>${cn(m.country)}</b>?</div>`;
+      $('pointsHint').textContent = m.timer ? `⚡ ${m.points} ${t('pts')}` : '⚡ 1 pt';
     } else {
       $('flag').style.display='block';
       $('flag').textContent = m.flag;
@@ -191,7 +194,8 @@ function handle(m) {
     }
 
     $('feedback').innerHTML = '';
-    const optDisplay = o => m.gameType==='map' ? (MAP_DN[o]||o) : (m.gameType==='local' ? o : cn(o));
+    const optDisplay = o => m.gameType==='map' ? (MAP_DN[o]||o) : m.gameType==='flagquiz' ? `<span style="font-size:2.5em">${o}</span>` : (m.gameType==='local' ? o : cn(o));
+    $('options').style.gridTemplateColumns = m.gameType==='flagquiz' ? 'repeat(2,1fr)' : '';
     $('options').innerHTML = m.options.map(o =>
       `<button class="opt" data-en="${o}" onclick="answer(this,'${o.replace(/'/g,"\\'")}')">${optDisplay(o)}</button>`
     ).join('');

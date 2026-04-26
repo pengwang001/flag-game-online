@@ -140,6 +140,15 @@ function sendQuestion() {
       country: q.name, flag: q.flag,
       options: currentQuestion.options, points: timerSec ? MAX_CLUES : 1, timer: timerSec,
     };
+  } else if (gameType === 'flagquiz') {
+    const pool = CAPITALS[continent].filter(c => c.name !== q.name);
+    const opts = shuffle([q.flag, ...shuffle(pool).map(c => c.flag).slice(0, 3)]);
+    currentQuestion = { name: q.flag, options: opts };
+    base = {
+      type: 'question', gameType: 'flagquiz', round: questionIdx + 1, total: countries.length,
+      country: q.name,
+      options: currentQuestion.options, points: timerSec ? MAX_CLUES : 1, timer: timerSec,
+    };
   }
 
   roundStartTime = Date.now();
@@ -147,7 +156,7 @@ function sendQuestion() {
   players.forEach(p => sendTo(p.ws, base));
 
   // Progressive clue reveal (trivia + local only)
-  if (gameType !== 'map' && gameType !== 'capital') {
+  if (gameType !== 'map' && gameType !== 'capital' && gameType !== 'flagquiz') {
     const clues = currentQuestion.clues;
     const zhClues = currentQuestion.zhClues;
     clueIdx = 1;
@@ -300,6 +309,10 @@ wss.on('connection', (ws) => {
         const pool = CAPITALS[continent] || [];
         roundsPerGame = Math.min(msg.rounds || 15, pool.length);
         countries = shuffle([...pool]).slice(0, roundsPerGame);
+      } else if (gameType === 'flagquiz') {
+        const pool = CAPITALS[continent] || [];
+        roundsPerGame = Math.min(msg.rounds || 15, pool.length);
+        countries = shuffle([...pool]).slice(0, roundsPerGame);
       }
       questionIdx = 0;
       players.forEach(p => p.score = 0);
@@ -313,7 +326,7 @@ wss.on('connection', (ws) => {
       clearInterval(clueTimer);
       clearInterval(roundTimer);
       const correct = msg.answer === currentQuestion.name;
-      const pts = correct ? (gameType === 'map' || gameType === 'capital' ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1)) : 0;
+      const pts = correct ? (gameType === 'map' || gameType === 'capital' || gameType === 'flagquiz' ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1)) : 0;
       soloScore += pts;
       sendTo(hostWs, { type: 'solo_result', correct, correctAnswer: currentQuestion.name, pts, totalScore: soloScore });
       autoAdvanceTimer = setTimeout(() => { questionIdx++; sendQuestion(); }, 3000);
@@ -323,7 +336,7 @@ wss.on('connection', (ws) => {
       answered.add(playerId);
       const correct = msg.answer === currentQuestion.name;
       const p = players.find(x => x.id === playerId);
-      if (correct && p) p.score += gameType === 'map' || gameType === 'capital' ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1);
+      if (correct && p) p.score += gameType === 'map' || gameType === 'capital' || gameType === 'flagquiz' ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1);
 
       sendTo(hostWs, {
         type: 'player_answered', playerId, name: p?.name, answer: msg.answer, correct,

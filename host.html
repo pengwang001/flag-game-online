@@ -69,6 +69,7 @@ h1{font-size:2em;margin-bottom:10px}
     <button class="lang-btn active" onclick="setGameMode('trivia')">🌍 Country Trivia</button>
     <button class="lang-btn" onclick="setGameMode('map')">🗺️ Map Quiz</button>
     <button class="lang-btn" onclick="setGameMode('capital')">🏛️ Capital City</button>
+    <button class="lang-btn" onclick="setGameMode('flagquiz')">🏁 Flag Quiz</button>
     <button class="lang-btn" onclick="setGameMode('local')">📍 Local Explorer</button>
   </div>
 
@@ -120,6 +121,22 @@ h1{font-size:2em;margin-bottom:10px}
     <button id="capitalStartBtn" class="start-btn" disabled onclick="startCapital()">Start Capital City</button>
   </div>
 
+  <div id="flagquizOptions" style="display:none;margin-top:10px">
+    <p style="color:#888;margin:10px 0">Pick the correct flag for each country!</p>
+    <h3>Pick a continent:</h3>
+    <div id="flagquizContinents" class="continents"></div>
+    <div style="margin-top:10px">
+      <span style="color:#888">Timer:</span>
+      <div class="lang-toggle" id="flagquizTimerSelect">
+        <button class="lang-btn active" onclick="pickFlagquizTimer(0)">No timer</button>
+        <button class="lang-btn" onclick="pickFlagquizTimer(15)">15s</button>
+        <button class="lang-btn" onclick="pickFlagquizTimer(20)">20s</button>
+        <button class="lang-btn" onclick="pickFlagquizTimer(30)">30s</button>
+      </div>
+    </div>
+    <button id="flagquizStartBtn" class="start-btn" disabled onclick="startFlagquiz()">Start Flag Quiz</button>
+  </div>
+
   <div id="localOptions" style="display:none;margin-top:10px">
     <p style="color:#888;margin:10px 0">How well do you know Issaquah, Bellevue, Sammamish & Seattle?</p>
     <button class="start-btn" onclick="startLocal()">Start Local Explorer</button>
@@ -157,6 +174,7 @@ let selectedTimer = 0;
 let soloScore = 0;
 let selectedMapContinent = null;
 let selectedCapitalContinent = null;
+let selectedFlagquizContinent = null;
 let currentGameMode = 'trivia';
 let allMapFeatures = null;
 const MAP_CONTINENTS_CLIENT = {};
@@ -193,6 +211,19 @@ function startCapital() {
   if (!selectedCapitalContinent) return;
   ws.send(JSON.stringify({ type:'start', gameType:'capital', continent: selectedCapitalContinent, timer: selectedTimer }));
 }
+function pickFlagquizContinent(c) {
+  selectedFlagquizContinent = c;
+  document.querySelectorAll('#flagquizContinents .cont-btn').forEach(b => b.classList.toggle('selected', b.textContent.startsWith(c)));
+  $('flagquizStartBtn').disabled = false;
+}
+function pickFlagquizTimer(s) {
+  selectedTimer = s;
+  document.querySelectorAll('#flagquizTimerSelect .lang-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
+}
+function startFlagquiz() {
+  if (!selectedFlagquizContinent) return;
+  ws.send(JSON.stringify({ type:'start', gameType:'flagquiz', continent: selectedFlagquizContinent, timer: selectedTimer }));
+}
 function startLocal() {
   ws.send(JSON.stringify({ type:'start', gameType:'local', timer: selectedTimer }));
 }
@@ -227,9 +258,10 @@ function setGameMode(mode) {
   $('triviaOptions').style.display = mode==='trivia' ? 'block' : 'none';
   $('mapOptions').style.display = mode==='map' ? 'block' : 'none';
   $('capitalOptions').style.display = mode==='capital' ? 'block' : 'none';
+  $('flagquizOptions').style.display = mode==='flagquiz' ? 'block' : 'none';
   $('localOptions').style.display = mode==='local' ? 'block' : 'none';
   document.querySelectorAll('.lang-toggle')[0].querySelectorAll('.lang-btn').forEach(b =>
-    b.classList.toggle('active', (mode==='trivia'&&b.textContent.includes('Country'))||(mode==='map'&&b.textContent.includes('Map'))||(mode==='capital'&&b.textContent.includes('Capital'))||(mode==='local'&&b.textContent.includes('Local')))
+    b.classList.toggle('active', (mode==='trivia'&&b.textContent.includes('Country'))||(mode==='map'&&b.textContent.includes('Map'))||(mode==='capital'&&b.textContent.includes('Capital'))||(mode==='flagquiz'&&b.textContent.includes('Flag'))||(mode==='local'&&b.textContent.includes('Local')))
   );
 }
 
@@ -356,6 +388,7 @@ function handleMsg(e) {
     $('startBtn').disabled = !selectedContinent;
     $('mapStartBtn').disabled = !selectedMapContinent;
     $('capitalStartBtn').disabled = !selectedCapitalContinent;
+    $('flagquizStartBtn').disabled = !selectedFlagquizContinent;
     // Re-apply game mode visibility
     setGameMode(currentGameMode);
     if (m.mapContinents) {
@@ -366,6 +399,9 @@ function handleMsg(e) {
     if (m.capitalContinents) {
       $('capitalContinents').innerHTML = m.capitalContinents.map(c =>
         `<button class="cont-btn${selectedCapitalContinent===c.name?' selected':''}" onclick="pickCapitalContinent('${c.name}')">${c.name} (${c.count})</button>`
+      ).join('');
+      $('flagquizContinents').innerHTML = m.capitalContinents.map(c =>
+        `<button class="cont-btn${selectedFlagquizContinent===c.name?' selected':''}" onclick="pickFlagquizContinent('${c.name}')">${c.name} (${c.count})</button>`
       ).join('');
     }
   }
@@ -399,6 +435,9 @@ function handleMsg(e) {
       $('flagArea').textContent = m.flag;
       $('clueList').innerHTML = `<div class="clue" style="font-size:1.3em">What is the capital of <b>${m.country}</b>?</div>`;
       $('pointsHint').textContent = m.timer ? `⚡ ${m.points} pts` : '⚡ 1 pt';
+    } else if (m.gameType === 'flagquiz') {
+      $('clueList').innerHTML = `<div class="clue" style="font-size:1.5em">Which flag belongs to <b>${m.country}</b>?</div>`;
+      $('pointsHint').textContent = m.timer ? `⚡ ${m.points} pts` : '⚡ 1 pt';
     } else {
       $('flagArea').style.display='block';
       $('flagArea').textContent = m.flag;
@@ -411,8 +450,9 @@ function handleMsg(e) {
       `<div class="score-card" style="background:${p.color}">${p.name}: ${p.score}</div>`
     ).join('') || '';
     const mapDN = {"United States of America":"United States","Dominican Rep.":"Dominican Republic","Czechia":"Czech Republic","Bosnia and Herz.":"Bosnia","Macedonia":"North Macedonia"};
-    const optDisplay = o => m.gameType==='map' ? (mapDN[o]||o) : o;
+    const optDisplay = o => m.gameType==='map' ? (mapDN[o]||o) : m.gameType==='flagquiz' ? `<span style="font-size:2.5em">${o}</span>` : o;
     $('optionsArea').style.display = 'none';
+    $('optionsArea').style.gridTemplateColumns = m.gameType==='flagquiz' ? 'repeat(2,1fr)' : '';
     $('optionsArea').innerHTML = m.options.map(o => `<div class="opt">${optDisplay(o)}</div>`).join('');
     if (m.solo) {
       $('optionsArea').style.display = 'grid';
