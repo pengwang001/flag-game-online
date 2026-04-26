@@ -10,6 +10,9 @@ h1{font-size:1.8em;margin-bottom:15px}
 .screen.active{display:block}
 input{width:100%;padding:14px;border:2px solid #333;border-radius:10px;background:#16213e;color:#eee;font-size:1.2em;text-align:center;margin:10px 0}
 .join-btn{width:100%;padding:14px;border:none;border-radius:10px;background:#3b82f6;color:#fff;font-size:1.2em;cursor:pointer}
+.lang-toggle{display:flex;gap:8px;justify-content:center;margin:12px 0}
+.lang-btn{padding:10px 20px;border:2px solid #333;border-radius:10px;background:#16213e;color:#eee;font-size:1.1em;cursor:pointer}
+.lang-btn.active{border-color:#3b82f6;background:#1a3a5c}
 .flag{font-size:4em;margin:10px 0}
 .clues{text-align:left;margin:10px 0}
 .clue{padding:8px 12px;margin:4px 0;background:#16213e;border-radius:8px;font-size:.95em;animation:fadeIn .4s}
@@ -32,16 +35,20 @@ input{width:100%;padding:14px;border:2px solid #333;border-radius:10px;backgroun
 .landmark{max-width:250px;max-height:150px;border-radius:10px;margin:8px auto;display:block}
 </style>
 </head><body>
-<h1>🌍 Guess the Country!</h1>
+<h1 id="title">🌍 Guess the Country!</h1>
 
 <div id="join" class="screen active">
+  <div class="lang-toggle">
+    <button class="lang-btn active" onclick="setLang('en')">English</button>
+    <button class="lang-btn" onclick="setLang('zh')">中文</button>
+  </div>
   <input id="nameInput" placeholder="Your name" maxlength="15" autofocus>
   <button class="join-btn" id="joinBtn">Join Game</button>
   <p id="joinError" style="color:#ef4444;margin-top:10px"></p>
 </div>
 
 <div id="wait" class="screen">
-  <p class="waiting">✅ You're in! Waiting for host to start...</p>
+  <p class="waiting" id="waitMsg">✅ You're in! Waiting for host to start...</p>
 </div>
 
 <div id="play" class="screen">
@@ -55,16 +62,45 @@ input{width:100%;padding:14px;border:2px solid #333;border-radius:10px;backgroun
 </div>
 
 <div id="gameover" class="screen">
-  <h2>🏆 Game Over!</h2>
+  <h2 id="gameoverTitle">🏆 Game Over!</h2>
   <ol id="finalList" class="final-list"></ol>
 </div>
 
 <script>
+let lang = 'en';
+
+// Chinese country names
+const ZH = {
+"Nigeria":"尼日利亚","Egypt":"埃及","South Africa":"南非","Kenya":"肯尼亚","Ethiopia":"埃塞俄比亚","Morocco":"摩洛哥","Ghana":"加纳","Tanzania":"坦桑尼亚","Rwanda":"卢旺达","Senegal":"塞内加尔","Tunisia":"突尼斯","Uganda":"乌干达","Ivory Coast":"科特迪瓦","Madagascar":"马达加斯加","Zimbabwe":"津巴布韦",
+"Japan":"日本","India":"印度","China":"中国","South Korea":"韩国","Thailand":"泰国","Vietnam":"越南","Turkey":"土耳其","Singapore":"新加坡","Philippines":"菲律宾","Indonesia":"印度尼西亚","Malaysia":"马来西亚","Israel":"以色列","Nepal":"尼泊尔","Bangladesh":"孟加拉国","Mongolia":"蒙古","Sri Lanka":"斯里兰卡","Cambodia":"柬埔寨","United Arab Emirates":"阿联酋","Jordan":"约旦","Uzbekistan":"乌兹别克斯坦","Myanmar":"缅甸","Kazakhstan":"哈萨克斯坦","Lebanon":"黎巴嫩",
+"France":"法国","Germany":"德国","Italy":"意大利","Spain":"西班牙","United Kingdom":"英国","Netherlands":"荷兰","Sweden":"瑞典","Greece":"希腊","Portugal":"葡萄牙","Poland":"波兰","Norway":"挪威","Switzerland":"瑞士","Ireland":"爱尔兰","Austria":"奥地利","Croatia":"克罗地亚","Finland":"芬兰","Denmark":"丹麦","Czech Republic":"捷克","Hungary":"匈牙利","Romania":"罗马尼亚","Belgium":"比利时","Iceland":"冰岛",
+"United States":"美国","Canada":"加拿大","Mexico":"墨西哥","Cuba":"古巴","Jamaica":"牙买加","Costa Rica":"哥斯达黎加","Panama":"巴拿马","Haiti":"海地","Dominican Republic":"多米尼加","Guatemala":"危地马拉","Trinidad and Tobago":"特立尼达和多巴哥","Bahamas":"巴哈马",
+"Brazil":"巴西","Argentina":"阿根廷","Colombia":"哥伦比亚","Peru":"秘鲁","Chile":"智利","Ecuador":"厄瓜多尔","Uruguay":"乌拉圭","Venezuela":"委内瑞拉","Bolivia":"玻利维亚","Paraguay":"巴拉圭","Guyana":"圭亚那","Suriname":"苏里南",
+"Australia":"澳大利亚","New Zealand":"新西兰","Fiji":"斐济","Papua New Guinea":"巴布亚新几内亚","Samoa":"萨摩亚","Tonga":"汤加","Vanuatu":"瓦努阿图","Solomon Islands":"所罗门群岛"
+};
+
+const UI = {
+  en: { title:"🌍 Guess the Country!", placeholder:"Your name", join:"Join Game", wait:"✅ You're in! Waiting for host to start...", round:"Round", pts:"pts", correct:"✅ Correct!", wrong:"❌ It was", gameover:"🏆 Game Over!", enterName:"Enter a name!" },
+  zh: { title:"🌍 猜猜是哪个国家！", placeholder:"你的名字", join:"加入游戏", wait:"✅ 已加入！等待主持人开始...", round:"第", pts:"分", correct:"✅ 答对了！", wrong:"❌ 正确答案是", gameover:"🏆 游戏结束！", enterName:"请输入名字！" }
+};
+
+function t(key) { return UI[lang][key]; }
+function cn(name) { return lang === 'zh' ? (ZH[name] || name) : name; }
+
+function setLang(l) {
+  lang = l;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent === (l==='en'?'English':'中文')));
+  $('title').textContent = t('title');
+  $('nameInput').placeholder = t('placeholder');
+  $('joinBtn').textContent = t('join');
+  $('waitMsg').textContent = t('wait');
+  $('gameoverTitle').textContent = t('gameover');
+}
+
 const proto = location.protocol === 'https:' ? 'wss' : 'ws';
 let ws;
 const $ = id => document.getElementById(id);
 
-// Sound effects (Web Audio API — no files needed)
 const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
 function playTone(freq,dur,type='sine',vol=0.3){
   const o=audioCtx.createOscillator(),g=audioCtx.createGain();
@@ -80,7 +116,6 @@ function sfxClue(){playTone(800,.05,'sine',0.15)}
 
 function connect() {
   ws = new WebSocket(`${proto}://${location.host}`);
-  ws.onopen = () => {};
   ws.onmessage = e => handle(JSON.parse(e.data));
   ws.onclose = () => setTimeout(connect, 2000);
 }
@@ -88,7 +123,7 @@ connect();
 
 $('joinBtn').onclick = () => {
   const name = $('nameInput').value.trim();
-  if (!name) { $('joinError').textContent = 'Enter a name!'; return; }
+  if (!name) { $('joinError').textContent = t('enterName'); return; }
   ws.send(JSON.stringify({ type: 'join', name }));
 };
 $('nameInput').onkeydown = e => { if (e.key === 'Enter') $('joinBtn').click(); };
@@ -98,63 +133,63 @@ function show(id) { document.querySelectorAll('.screen').forEach(s => s.classLis
 function handle(m) {
   if (m.type === 'joined') show('wait');
   if (m.type === 'error') $('joinError').textContent = m.msg;
-
   if (m.type === 'lobby') show('wait');
 
   if (m.type === 'question') {
     show('play');
     if(audioCtx.state==='suspended')audioCtx.resume();
     sfxNewRound();
-    $('roundInfo').textContent = `Round ${m.round}/${m.total}`;
+    $('roundInfo').textContent = lang==='zh' ? `${t('round')} ${m.round}/${m.total} 题` : `${t('round')} ${m.round}/${m.total}`;
     $('flag').textContent = m.flag;
     if (m.img) { $('landmark').src = m.img; $('landmark').style.display = 'block'; }
     else { $('landmark').style.display = 'none'; }
     $('clueList').innerHTML = `<div class="clue">💡 ${m.clues[0]}</div>`;
-    $('pointsHint').textContent = `⚡ ${m.points} pts`;
+    $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
     $('feedback').innerHTML = '';
     $('options').innerHTML = m.options.map(o =>
-      `<button class="opt" onclick="answer(this,'${o.replace(/'/g,"\\'")}')">${o}</button>`
+      `<button class="opt" data-en="${o}" onclick="answer(this,'${o.replace(/'/g,"\\'")}')">${cn(o)}</button>`
     ).join('');
   }
 
   if (m.type === 'clue') {
     sfxClue();
     $('clueList').innerHTML += `<div class="clue">💡 ${m.clue}</div>`;
-    $('pointsHint').textContent = `⚡ ${m.points} pts`;
+    $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
   }
 
   if (m.type === 'answer_result') {
     m.correct ? sfxCorrect() : sfxWrong();
     document.querySelectorAll('.opt').forEach(b => {
       b.disabled = true;
-      if (b.textContent === m.correctAnswer) b.classList.add('correct');
+      if (b.dataset.en === m.correctAnswer) b.classList.add('correct');
     });
     $('feedback').innerHTML = m.correct
-      ? '<div class="result correct">✅ Correct!</div>'
-      : `<div class="result wrong">❌ It was ${m.correctAnswer}</div>`;
+      ? `<div class="result correct">${t('correct')}</div>`
+      : `<div class="result wrong">${t('wrong')} ${cn(m.correctAnswer)}</div>`;
   }
 
   if (m.type === 'all_answered') {
     document.querySelectorAll('.opt').forEach(b => {
       b.disabled = true;
-      if (b.textContent === m.correctAnswer) b.classList.add('correct');
+      if (b.dataset.en === m.correctAnswer) b.classList.add('correct');
       else if (!b.classList.contains('selected')) b.classList.add('wrong');
     });
   }
 
   if (m.type === 'gameover') {
     show('gameover');
+    $('gameoverTitle').textContent = t('gameover');
     const medals = ['🥇','🥈','🥉'];
     $('finalList').innerHTML = m.players.map((p,i) =>
-      `<li style="background:${p.color}">${medals[i]||'  '} ${p.name} <span>${p.score} pts</span></li>`
+      `<li style="background:${p.color}">${medals[i]||'  '} ${p.name} <span>${p.score} ${t('pts')}</span></li>`
     ).join('');
   }
 }
 
-function answer(btn, name) {
+function answer(btn, enName) {
   document.querySelectorAll('.opt').forEach(b => { b.disabled = true; });
   btn.classList.add('selected');
-  ws.send(JSON.stringify({ type: 'answer', answer: name }));
+  ws.send(JSON.stringify({ type: 'answer', answer: enName }));
 }
 </script>
 </body></html>
