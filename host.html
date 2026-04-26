@@ -70,6 +70,7 @@ h1{font-size:2em;margin-bottom:10px}
     <button class="lang-btn" onclick="setGameMode('map')">🗺️ Map Quiz</button>
     <button class="lang-btn" onclick="setGameMode('capital')">🏛️ Capital City</button>
     <button class="lang-btn" onclick="setGameMode('flagquiz')">🏁 Flag Quiz</button>
+    <button class="lang-btn" onclick="setGameMode('usmap')">🇺🇸 US States</button>
     <button class="lang-btn" onclick="setGameMode('local')">📍 Local Explorer</button>
   </div>
 
@@ -137,6 +138,21 @@ h1{font-size:2em;margin-bottom:10px}
     <button id="flagquizStartBtn" class="start-btn" disabled onclick="startFlagquiz()">Start Flag Quiz</button>
   </div>
 
+  <div id="usmapOptions" style="display:none;margin-top:10px">
+    <p style="color:#888;margin:10px 0">Identify US states by their shape on the map!</p>
+    <p id="usmapCount" style="color:#aaa;font-size:.9em"></p>
+    <div style="margin-top:10px">
+      <span style="color:#888">Timer:</span>
+      <div class="lang-toggle" id="usmapTimerSelect">
+        <button class="lang-btn active" onclick="pickUsmapTimer(0)">No timer</button>
+        <button class="lang-btn" onclick="pickUsmapTimer(15)">15s</button>
+        <button class="lang-btn" onclick="pickUsmapTimer(20)">20s</button>
+        <button class="lang-btn" onclick="pickUsmapTimer(30)">30s</button>
+      </div>
+    </div>
+    <button id="usmapStartBtn" class="start-btn" onclick="startUsmap()">Start US States</button>
+  </div>
+
   <div id="localOptions" style="display:none;margin-top:10px">
     <p style="color:#888;margin:10px 0">How well do you know Issaquah, Bellevue, Sammamish & Seattle?</p>
     <button class="start-btn" onclick="startLocal()">Start Local Explorer</button>
@@ -185,6 +201,27 @@ fetch('/countries-110m.json').then(r=>r.json()).then(data=>{
   allMapFeatures = topojson.feature(data, data.objects.countries).features;
 }).catch(()=>{});
 
+let usStateFeatures = null;
+fetch('/states-10m.json').then(r=>r.json()).then(data=>{
+  usStateFeatures = topojson.feature(data, data.objects.states).features;
+}).catch(()=>{});
+
+function drawUsMapOnHost(stateName) {
+  const svg = d3.select('#mapSvg');
+  svg.selectAll('*').remove();
+  if (!usStateFeatures) return;
+  const lower48 = usStateFeatures.filter(f => !['Alaska','Hawaii','Puerto Rico','American Samoa','Guam','Commonwealth of the Northern Mariana Islands','United States Virgin Islands','District of Columbia'].includes(f.properties.name));
+  const target = usStateFeatures.find(f => f.properties.name === stateName);
+  if (!target) return;
+  const isAlaskaHawaii = stateName==='Alaska'||stateName==='Hawaii';
+  const bg = isAlaskaHawaii ? [target] : lower48;
+  const proj = isAlaskaHawaii ? d3.geoMercator().fitSize([480,320],{type:'FeatureCollection',features:[target]}) : d3.geoAlbersUsa().fitSize([480,320],{type:'FeatureCollection',features:lower48});
+  const path = d3.geoPath().projection(proj);
+  svg.selectAll('.bg').data(bg).enter().append('path').attr('d',path).attr('fill','#1e293b').attr('stroke','#334155').attr('stroke-width',.3);
+  if (!isAlaskaHawaii) svg.append('path').datum(target).attr('d',path).attr('fill','#f59e0b').attr('stroke','#1a1a2e').attr('stroke-width',.5);
+  else svg.select('path').attr('fill','#f59e0b');
+}
+
 function pickMapContinent(c) {
   selectedMapContinent = c;
   document.querySelectorAll('#mapContinents .cont-btn').forEach(b => b.classList.toggle('selected', b.textContent.startsWith(c)));
@@ -224,6 +261,13 @@ function startFlagquiz() {
   if (!selectedFlagquizContinent) return;
   ws.send(JSON.stringify({ type:'start', gameType:'flagquiz', continent: selectedFlagquizContinent, timer: selectedTimer }));
 }
+function pickUsmapTimer(s) {
+  selectedTimer = s;
+  document.querySelectorAll('#usmapTimerSelect .lang-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
+}
+function startUsmap() {
+  ws.send(JSON.stringify({ type:'start', gameType:'usmap', timer: selectedTimer }));
+}
 function startLocal() {
   ws.send(JSON.stringify({ type:'start', gameType:'local', timer: selectedTimer }));
 }
@@ -259,9 +303,10 @@ function setGameMode(mode) {
   $('mapOptions').style.display = mode==='map' ? 'block' : 'none';
   $('capitalOptions').style.display = mode==='capital' ? 'block' : 'none';
   $('flagquizOptions').style.display = mode==='flagquiz' ? 'block' : 'none';
+  $('usmapOptions').style.display = mode==='usmap' ? 'block' : 'none';
   $('localOptions').style.display = mode==='local' ? 'block' : 'none';
   document.querySelectorAll('.lang-toggle')[0].querySelectorAll('.lang-btn').forEach(b =>
-    b.classList.toggle('active', (mode==='trivia'&&b.textContent.includes('Country'))||(mode==='map'&&b.textContent.includes('Map'))||(mode==='capital'&&b.textContent.includes('Capital'))||(mode==='flagquiz'&&b.textContent.includes('Flag'))||(mode==='local'&&b.textContent.includes('Local')))
+    b.classList.toggle('active', (mode==='trivia'&&b.textContent.includes('Country'))||(mode==='map'&&b.textContent.includes('Map'))||(mode==='capital'&&b.textContent.includes('Capital'))||(mode==='flagquiz'&&b.textContent.includes('Flag'))||(mode==='usmap'&&b.textContent.includes('US'))||(mode==='local'&&b.textContent.includes('Local')))
   );
 }
 
@@ -391,6 +436,7 @@ function handleMsg(e) {
     $('flagquizStartBtn').disabled = !selectedFlagquizContinent;
     // Re-apply game mode visibility
     setGameMode(currentGameMode);
+    if (m.usStatesCount) $('usmapCount').textContent = `${m.usStatesCount} states`;
     if (m.mapContinents) {
       $('mapContinents').innerHTML = m.mapContinents.map(c =>
         `<button class="cont-btn${selectedMapContinent===c.name?' selected':''}" onclick="pickMapContinent('${c.name}')">${c.name} (${c.count})</button>`
@@ -438,6 +484,10 @@ function handleMsg(e) {
     } else if (m.gameType === 'flagquiz') {
       $('clueList').innerHTML = `<div class="clue" style="font-size:1.5em">Which flag belongs to <b>${m.country}</b>?</div>`;
       $('pointsHint').textContent = m.timer ? `⚡ ${m.points} pts` : '⚡ 1 pt';
+    } else if (m.gameType === 'usmap') {
+      $('mapSvg').style.display='block';
+      $('pointsHint').textContent = m.timer ? `⚡ ${m.points} pts` : '⚡ 1 pt';
+      drawUsMapOnHost(m.stateName);
     } else {
       $('flagArea').style.display='block';
       $('flagArea').textContent = m.flag;
