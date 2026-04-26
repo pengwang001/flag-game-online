@@ -1,36 +1,37 @@
 <!DOCTYPE html>
 <html><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>🌍 Flag Game — Play</title>
+<title>🌍 Trivia Lobby — Play</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:system-ui;background:#1a1a2e url('/gamebackground.png') center/cover fixed;color:#eee;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
-h1{font-size:1.8em;margin-bottom:15px}
+body{font-family:system-ui;background:#0a0e1a url('/gamebackground.png') center/cover fixed;color:#eee;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+h1{font-size:1.4em;margin-bottom:12px;letter-spacing:3px;color:#8899bb;font-weight:400}
+h1 strong{display:block;font-size:1.8em;font-weight:900;letter-spacing:1px;background:linear-gradient(180deg,#e8edf5 0%,#7ba4d4 40%,#4a7ab5 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 2px 8px rgba(80,140,220,.3))}
 .screen{display:none;width:100%;max-width:400px;text-align:center}
 .screen.active{display:block}
 .screen.active#play{display:flex;flex-direction:column;height:calc(100vh - 40px);height:calc(100dvh - 40px)}
-input{width:100%;padding:14px;border:2px solid #333;border-radius:10px;background:#16213e;color:#eee;font-size:1.2em;text-align:center;margin:10px 0}
-.join-btn{width:100%;padding:14px;border:none;border-radius:10px;background:#3b82f6;color:#fff;font-size:1.2em;cursor:pointer}
+input{width:100%;padding:14px;border:1px solid #2a3550;border-radius:12px;background:rgba(16,22,40,.7);color:#eee;font-size:1.2em;text-align:center;margin:10px 0}
+.join-btn{width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#5b9ef6,#3b7ee6);color:#fff;font-size:1.2em;cursor:pointer;font-weight:600;letter-spacing:1px;box-shadow:0 4px 15px rgba(59,130,246,.3)}
 .lang-toggle{display:flex;gap:8px;justify-content:center;margin:12px 0}
-.lang-btn{padding:10px 20px;border:2px solid #333;border-radius:10px;background:#16213e;color:#eee;font-size:1.1em;cursor:pointer}
-.lang-btn.active{border-color:#3b82f6;background:#1a3a5c}
+.lang-btn{padding:10px 20px;border:1px solid #2a3550;border-radius:20px;background:rgba(16,22,40,.6);color:#8899bb;font-size:1em;cursor:pointer;transition:.2s}
+.lang-btn.active{border-color:#5b9ef6;background:rgba(91,158,246,.15);color:#5b9ef6}
 .flag{font-size:4em;margin:10px 0}
 .clues{text-align:left;margin:10px 0}
-.clue{padding:8px 12px;margin:4px 0;background:#16213e;border-radius:8px;font-size:.95em;animation:fadeIn .4s}
+.clue{padding:8px 12px;margin:4px 0;background:rgba(16,22,40,.7);border:1px solid #1e2a45;border-radius:10px;font-size:.95em;animation:fadeIn .4s}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
 .options{display:grid;gap:10px;margin:0;flex-shrink:0}
-.opt{padding:16px;border:2px solid #333;border-radius:12px;background:#16213e;color:#eee;font-size:1.1em;cursor:pointer;transition:.15s;-webkit-tap-highlight-color:transparent}
+.opt{padding:16px;border:1px solid #2a3550;border-radius:12px;background:rgba(16,22,40,.7);color:#eee;font-size:1.1em;cursor:pointer;transition:.2s;-webkit-tap-highlight-color:transparent}
 .opt:active{transform:scale(.97)}
-.opt.correct{border-color:#22c55e;background:#16332e}
-.opt.wrong{border-color:#ef4444;background:#331616}
-.opt.selected{border-color:#f59e0b;background:#332e16}
+.opt.correct{border-color:#22c55e;background:rgba(22,51,46,.8);box-shadow:0 0 12px rgba(34,197,94,.2)}
+.opt.wrong{border-color:#ef4444;background:rgba(51,22,22,.8)}
+.opt.selected{border-color:#f59e0b;background:rgba(51,46,22,.8)}
 .opt:disabled{cursor:default;opacity:.7}
 .points{color:#f59e0b;font-size:1.3em;font-weight:bold;margin:5px 0}
 .result{font-size:1.5em;margin:15px 0;padding:15px;border-radius:12px}
 .result.correct{background:#16332e;color:#22c55e}
 .result.wrong{background:#331616;color:#ef4444}
-.waiting{color:#888;font-size:1.1em;margin:15px 0}
-.status{font-size:.9em;color:#888;margin:5px 0}
+.waiting{color:#667799;font-size:1em;margin:15px 0}
+.status{font-size:.85em;color:#556;margin:5px 0}
 .final-list{list-style:none;margin:15px 0}
 .final-list li{padding:10px;margin:5px 0;border-radius:8px;display:flex;justify-content:space-between;font-size:1.1em}
 .landmark{max-width:250px;max-height:150px;border-radius:10px;margin:8px auto;display:block}
@@ -44,7 +45,7 @@ input{width:100%;padding:14px;border:2px solid #333;border-radius:10px;backgroun
 </head><body>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://d3js.org/topojson.v3.min.js"></script>
-<h1 id="title">🌍 Guess the Country!</h1>
+<h1 id="title">✦ TRIVIA LOBBY ✦<strong>PLAY</strong></h1>
 
 <div id="join" class="screen active">
   <div class="lang-toggle">
@@ -99,8 +100,8 @@ const ZH_STATES={"Alabama":"阿拉巴马","Alaska":"阿拉斯加","Arizona":"亚
 const ZH_CAPITALS={"Abuja":"阿布贾","Cairo":"开罗","Pretoria":"比勒陀利亚","Nairobi":"内罗毕","Addis Ababa":"亚的斯亚贝巴","Rabat":"拉巴特","Accra":"阿克拉","Dodoma":"多多马","Kigali":"基加利","Dakar":"达喀尔","Tunis":"突尼斯","Kampala":"坎帕拉","Yamoussoukro":"亚穆苏克罗","Antananarivo":"塔那那利佛","Harare":"哈拉雷","Tokyo":"东京","New Delhi":"新德里","Beijing":"北京","Seoul":"首尔","Bangkok":"曼谷","Hanoi":"河内","Ankara":"安卡拉","Singapore":"新加坡","Manila":"马尼拉","Jakarta":"雅加达","Kuala Lumpur":"吉隆坡","Jerusalem":"耶路撒冷","Kathmandu":"加德满都","Dhaka":"达卡","Ulaanbaatar":"乌兰巴托","Colombo":"科伦坡","Phnom Penh":"金边","Abu Dhabi":"阿布扎比","Amman":"安曼","Tashkent":"塔什干","Naypyidaw":"内比都","Astana":"阿斯塔纳","Beirut":"贝鲁特","Paris":"巴黎","Berlin":"柏林","Rome":"罗马","Madrid":"马德里","London":"伦敦","Amsterdam":"阿姆斯特丹","Stockholm":"斯德哥尔摩","Athens":"雅典","Lisbon":"里斯本","Warsaw":"华沙","Oslo":"奥斯陆","Bern":"伯尔尼","Dublin":"都柏林","Vienna":"维也纳","Zagreb":"萨格勒布","Helsinki":"赫尔辛基","Copenhagen":"哥本哈根","Prague":"布拉格","Budapest":"布达佩斯","Bucharest":"布加勒斯特","Brussels":"布鲁塞尔","Reykjavik":"雷克雅未克","Washington, D.C.":"华盛顿","Ottawa":"渥太华","Mexico City":"墨西哥城","Havana":"哈瓦那","Kingston":"金斯敦","San José":"圣何塞","Panama City":"巴拿马城","Port-au-Prince":"太子港","Santo Domingo":"圣多明各","Guatemala City":"危地马拉城","Port of Spain":"西班牙港","Nassau":"拿骚","Brasília":"巴西利亚","Buenos Aires":"布宜诺斯艾利斯","Bogotá":"波哥大","Lima":"利马","Santiago":"圣地亚哥","Quito":"基多","Montevideo":"蒙得维的亚","Caracas":"加拉加斯","Sucre":"苏克雷","Asunción":"亚松森","Georgetown":"乔治敦","Paramaribo":"帕拉马里博","Canberra":"堪培拉","Wellington":"惠灵顿","Suva":"苏瓦","Port Moresby":"莫尔兹比港","Apia":"阿皮亚","Nukuʻalofa":"努库阿洛法","Port Vila":"维拉港","Honiara":"霍尼亚拉"};
 
 const UI = {
-  en: { title:"🌍 Guess the Country!", placeholder:"Your name", join:"Join Game", wait:"✅ You're in! Waiting for host to start...", round:"Round", pts:"pts", correct:"✅ Correct!", wrong:"❌ It was", gameover:"🏆 Game Over!", enterName:"Enter a name!" },
-  zh: { title:"🌍 猜猜是哪个国家！", placeholder:"你的名字", join:"加入游戏", wait:"✅ 已加入！等待主持人开始...", round:"第", pts:"分", correct:"✅ 答对了！", wrong:"❌ 正确答案是", gameover:"🏆 游戏结束！", enterName:"请输入名字！" }
+  en: { title:"✦ TRIVIA LOBBY ✦", placeholder:"Your name", join:"Join Game", wait:"✅ You're in! Waiting for host to start...", round:"Round", pts:"pts", correct:"✅ Correct!", wrong:"❌ It was", gameover:"🏆 Game Over!", enterName:"Enter a name!" },
+  zh: { title:"✦ 知识竞赛 ✦", placeholder:"你的名字", join:"加入游戏", wait:"✅ 已加入！等待主持人开始...", round:"第", pts:"分", correct:"✅ 答对了！", wrong:"❌ 正确答案是", gameover:"🏆 游戏结束！", enterName:"请输入名字！" }
 };
 
 function t(key) { return UI[lang][key]; }
@@ -110,7 +111,7 @@ function zhAny(name) { return lang==='zh' ? (ZH[name]||ZH_CAPITALS[name]||ZH_STA
 function setLang(l) {
   lang = l;
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent === (l==='en'?'English':'中文')));
-  $('title').textContent = t('title');
+  $('title').innerHTML = t('title') + '<strong>PLAY</strong>';
   $('nameInput').placeholder = t('placeholder');
   $('joinBtn').textContent = t('join');
   $('waitMsg').textContent = t('wait');
