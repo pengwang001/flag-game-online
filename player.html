@@ -134,6 +134,14 @@ function handle(m) {
       : `<div class="result wrong">❌ It was ${m.correctAnswer}</div>`;
   }
 
+  if (m.type === 'all_answered') {
+    document.querySelectorAll('.opt').forEach(b => {
+      b.disabled = true;
+      if (b.textContent === m.correctAnswer) b.classList.add('correct');
+      else if (!b.classList.contains('selected')) b.classList.add('wrong');
+    });
+  }
+
   if (m.type === 'gameover') {
     show('gameover');
     const medals = ['🥇','🥈','🥉'];

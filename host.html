@@ -166,7 +166,11 @@ function handleMsg(e) {
     $('scoreboard').innerHTML = m.players.map(p =>
       `<div class="score-card" style="background:${p.color}">${p.name}: ${p.score}</div>`
     ).join('');
+    // Countdown to auto-advance
+    let sec = m.autoAdvance || 3;
     $('nextBtn').style.display = 'inline-block';
+    $('nextBtn').textContent = `Next (${sec}s)`;
+    const cd = setInterval(() => { sec--; if(sec>0) $('nextBtn').textContent=`Next (${sec}s)`; else clearInterval(cd); }, 1000);
   }
 
   if (m.type === 'gameover') {

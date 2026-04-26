@@ -28,6 +28,7 @@ let roundsPerGame = 8;
 // Progressive clue state
 let clueIdx = 0;
 let clueTimer = null;
+let autoAdvanceTimer = null;
 const MAX_CLUES = 5;
 const CLUE_INTERVAL = 5000; // 5s between clues
 
@@ -46,6 +47,7 @@ function lobbyState() {
 function sendQuestion() {
   if (questionIdx >= countries.length) { endGame(); return; }
   clearInterval(clueTimer);
+  clearTimeout(autoAdvanceTimer);
   const q = countries[questionIdx];
   const pool = DATA[continent].filter(c => c.name !== q.name);
   const opts = shuffle([q, ...shuffle(pool).slice(0, 3)]);
@@ -158,11 +160,14 @@ wss.on('connection', (ws) => {
         sendTo(hostWs, {
           type: 'all_answered', correctAnswer: currentQuestion.name,
           players: players.map(p => ({ id: p.id, name: p.name, score: p.score, color: p.color })),
+          autoAdvance: 3,
         });
+        players.forEach(p => sendTo(p.ws, { type: 'all_answered', correctAnswer: currentQuestion.name, autoAdvance: 3 }));
+        autoAdvanceTimer = setTimeout(() => { questionIdx++; sendQuestion(); }, 3000);
       }
     }
 
-    if (msg.type === 'next' && isHost && state === 'playing') { questionIdx++; sendQuestion(); }
+    if (msg.type === 'next' && isHost && state === 'playing') { clearTimeout(autoAdvanceTimer); questionIdx++; sendQuestion(); }
     if (msg.type === 'back_to_lobby' && isHost) { state = 'lobby'; players.forEach(p => p.score = 0); lobbyState(); }
   });
 
