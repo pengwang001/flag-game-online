@@ -42,6 +42,7 @@ h1{font-size:2em;margin-bottom:10px}
 
 <div id="lobby" class="screen active">
   <div class="join-url">Players join at: <a id="joinLink" href="#" target="_blank"></a></div>
+  <img id="qrCode" style="margin:10px auto;display:block;border-radius:12px" width="200" height="200">
   <p class="status">Waiting for players...</p>
   <div id="lobbyPlayers" class="players"></div>
   <h3 style="margin-top:20px">Pick a continent:</h3>
@@ -78,6 +79,7 @@ const $ = id => document.getElementById(id);
 const joinUrl = `${location.origin}/play`;
 $('joinLink').href = joinUrl;
 $('joinLink').textContent = joinUrl;
+fetch('/qr').then(r=>r.json()).then(d=>{$('qrCode').src=d.qr;}).catch(()=>{});
 
 ws.onopen = () => ws.send(JSON.stringify({type:'host'}));
 

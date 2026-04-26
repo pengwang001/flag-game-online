@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { WebSocketServer } = require('ws');
+const QRCode = require('qrcode');
 
 const PORT = process.env.PORT || 3000;
 
@@ -92,6 +93,13 @@ const server = http.createServer((req, res) => {
   if (req.url === '/' || req.url === '/host') file = 'host.html';
   else if (req.url === '/play') file = 'player.html';
   else if (req.url === '/data.js') file = 'data.js';
+  else if (req.url === '/qr') {
+    const playUrl = `${req.headers['x-forwarded-proto']||'http'}://${req.headers.host}/play`;
+    QRCode.toDataURL(playUrl, {width:300,margin:1}, (err,url) => {
+      res.writeHead(200,{'Content-Type':'application/json'});
+      res.end(JSON.stringify({qr:url,url:playUrl}));
+    }); return;
+  }
   else { res.writeHead(404); res.end('Not found'); return; }
   const ext = path.extname(file);
   res.writeHead(200, { 'Content-Type': MIME[ext] || 'text/plain' });
