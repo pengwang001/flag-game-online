@@ -44,6 +44,13 @@ h1{font-size:2em;margin-bottom:10px}
 .timer-text{font-size:1.1em;font-weight:bold;margin-top:2px}
 .status{font-size:.9em;color:#888;margin:5px 0}
 .answered-bar{height:6px;background:#333;border-radius:3px;max-width:300px;margin:8px auto}
+.confetti-container{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999;overflow:hidden}
+.confetti{position:absolute;width:10px;height:10px;top:-10px;animation:confettiFall linear forwards}
+@keyframes confettiFall{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+.winner-reveal{animation:winnerPop .6s ease-out}
+@keyframes winnerPop{0%{transform:scale(0);opacity:0}50%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+.winner-name{font-size:2.5em;margin:15px 0;animation:winnerGlow 1s ease-in-out infinite alternate}
+@keyframes winnerGlow{from{text-shadow:0 0 10px #f59e0b,0 0 20px #f59e0b}to{text-shadow:0 0 20px #f59e0b,0 0 40px #ef4444,0 0 60px #ef4444}}
 .answered-fill{height:100%;background:#3b82f6;border-radius:3px;transition:width .3s}
 </style>
 </head><body>
@@ -150,7 +157,37 @@ function sfxWrong(){playTone(200,.15,'square',0.2);setTimeout(()=>playTone(150,.
 function sfxNewRound(){playTone(440,.08,'sine',0.15)}
 function sfxClue(){playTone(800,.05,'sine',0.15)}
 function sfxAllAnswered(){playTone(600,.1);setTimeout(()=>playTone(800,.15),120)}
-function sfxGameOver(){playTone(523,.1);setTimeout(()=>playTone(659,.1),120);setTimeout(()=>playTone(784,.1),240);setTimeout(()=>playTone(1047,.3),360)}
+function sfxGameOver(){
+  // Victory fanfare: C-E-G-C (octave) then triumphant finish
+  playTone(523,.15);
+  setTimeout(()=>playTone(659,.15),150);
+  setTimeout(()=>playTone(784,.15),300);
+  setTimeout(()=>playTone(1047,.3),450);
+  setTimeout(()=>{playTone(784,.1);playTone(1047,.1)},750);
+  setTimeout(()=>{playTone(1047,.4);playTone(1319,.4)},900);
+  // Drumroll effect
+  setTimeout(()=>{for(let i=0;i<6;i++)setTimeout(()=>playTone(200+i*30,.05,'square',.1),i*50)},100);
+}
+
+function spawnConfetti(){
+  const container=document.createElement('div');
+  container.className='confetti-container';
+  document.body.appendChild(container);
+  const colors=['#ef4444','#f59e0b','#22c55e','#3b82f6','#a855f7','#ec4899','#14b8a6','#fff'];
+  for(let i=0;i<80;i++){
+    const c=document.createElement('div');
+    c.className='confetti';
+    c.style.left=Math.random()*100+'%';
+    c.style.background=colors[Math.floor(Math.random()*colors.length)];
+    c.style.width=(6+Math.random()*8)+'px';
+    c.style.height=(6+Math.random()*8)+'px';
+    c.style.borderRadius=Math.random()>.5?'50%':'0';
+    c.style.animationDuration=(2+Math.random()*3)+'s';
+    c.style.animationDelay=(Math.random()*2)+'s';
+    container.appendChild(c);
+  }
+  setTimeout(()=>container.remove(),6000);
+}
 
 const $ = id => document.getElementById(id);
 const joinUrl = `${location.origin}/play`;
@@ -252,10 +289,16 @@ function handleMsg(e) {
   if (m.type === 'gameover') {
     show('results');
     sfxGameOver();
+    spawnConfetti();
     const medals = ['🥇','🥈','🥉'];
-    $('resultList').innerHTML = m.players.map((p,i) =>
-      `<li style="background:${p.color}">${medals[i]||'  '} ${p.name} <span>${p.score} pts</span></li>`
-    ).join('');
+    const winner = m.players[0];
+    $('resultList').innerHTML =
+      `<div class="winner-reveal"><div class="winner-name">${medals[0]} ${winner.name}</div><div style="font-size:1.3em;color:#f59e0b;margin-bottom:15px">${winner.score} pts — Champion!</div></div>` +
+      m.players.slice(1).map((p,i) =>
+        `<li style="background:${p.color};animation:winnerPop .4s ease-out ${(i+1)*0.2}s both">${medals[i+1]||'  '} ${p.name} <span>${p.score} pts</span></li>`
+      ).join('');
+    // Second confetti burst
+    setTimeout(spawnConfetti, 2000);
   }
 };
 
