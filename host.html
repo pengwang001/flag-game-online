@@ -54,6 +54,8 @@ h1{font-size:2em;margin-bottom:10px}
 .answered-fill{height:100%;background:#3b82f6;border-radius:3px;transition:width .3s}
 </style>
 </head><body>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://d3js.org/topojson.v3.min.js"></script>
 <h1>🌍 Guess the Country!</h1>
 
 <div id="lobby" class="screen active">
@@ -87,12 +89,14 @@ h1{font-size:2em;margin-bottom:10px}
 
   <div id="mapOptions" style="display:none;margin-top:10px">
     <p style="color:#888;margin:10px 0">Identify countries by their shape on the map!</p>
-    <button class="start-btn" onclick="window.location.href='/map'">Open Map Quiz →</button>
+    <h3>Pick a continent:</h3>
+    <div id="mapContinents" class="continents"></div>
+    <button id="mapStartBtn" class="start-btn" disabled onclick="startMap()">Start Map Quiz</button>
   </div>
 
   <div id="localOptions" style="display:none;margin-top:10px">
     <p style="color:#888;margin:10px 0">How well do you know Issaquah, Bellevue, Sammamish & Seattle?</p>
-    <button class="start-btn" onclick="window.location.href='/local'">Open Local Explorer →</button>
+    <button class="start-btn" onclick="startLocal()">Start Local Explorer</button>
   </div>
 </div>
 
@@ -103,6 +107,7 @@ h1{font-size:2em;margin-bottom:10px}
   <div class="points-hint" id="pointsHint"></div>
   <div id="flagArea" class="flag"></div>
   <img id="landmark" class="landmark" style="display:none">
+  <svg id="mapSvg" width="500" height="340" style="display:none;background:#0f1629;border-radius:12px;margin:10px auto"></svg>
   <div id="clueList" class="clues"></div>
   <div class="answered-bar"><div id="answeredFill" class="answered-fill" style="width:0%"></div></div>
   <p class="status" id="answerStatus"></p>
@@ -124,6 +129,47 @@ let ws;
 let selectedContinent = null;
 let selectedTimer = 0;
 let soloScore = 0;
+let selectedMapContinent = null;
+let allMapFeatures = null;
+const MAP_CONTINENTS_CLIENT = {};
+const MAP_DISPLAY={"United States of America":"United States","Dominican Rep.":"Dominican Republic","Czechia":"Czech Republic","Bosnia and Herz.":"Bosnia","Macedonia":"North Macedonia"};
+
+// Load TopoJSON for map mode
+fetch('/countries-110m.json').then(r=>r.json()).then(data=>{
+  allMapFeatures = topojson.feature(data, data.objects.countries).features;
+}).catch(()=>{});
+
+function pickMapContinent(c) {
+  selectedMapContinent = c;
+  document.querySelectorAll('#mapContinents .cont-btn').forEach(b => b.classList.toggle('selected', b.textContent.startsWith(c)));
+  $('mapStartBtn').disabled = false;
+}
+function startMap() {
+  if (!selectedMapContinent) return;
+  ws.send(JSON.stringify({ type:'start', gameType:'map', continent: selectedMapContinent, timer: selectedTimer }));
+}
+function startLocal() {
+  ws.send(JSON.stringify({ type:'start', gameType:'local', timer: selectedTimer }));
+}
+
+function drawMapOnHost(topoName, cont, members) {
+  const svg = d3.select('#mapSvg');
+  svg.selectAll('*').remove();
+  if (!allMapFeatures) return;
+  const contFeats = allMapFeatures.filter(f => members.includes(f.properties.name));
+  const target = allMapFeatures.find(f => f.properties.name === topoName);
+  if (!contFeats.length || !target) return;
+  const collection = {type:'FeatureCollection', features:contFeats};
+  const proj = d3.geoMercator().fitSize([480,320], collection);
+  const path = d3.geoPath().projection(proj);
+  svg.selectAll('.bg').data(contFeats).enter().append('path').attr('d',path).attr('fill','#1e293b').attr('stroke','#334155').attr('stroke-width',.3);
+  svg.append('path').datum(target).attr('d',path).attr('fill','#f59e0b').attr('stroke','#1a1a2e').attr('stroke-width',.5);
+}
+
+function renderLocalClue(c) {
+  if (typeof c === 'string') return `<div class="clue">💡 ${c}</div>`;
+  return `<div class="clue">📸 ${c.caption}<img src="${c.img}" style="max-width:100%;max-height:180px;border-radius:8px;margin-top:6px"></div>`;
+}
 
 function soloAnswer(btn, name) {
   document.querySelectorAll('.opt').forEach(b => { b.style.cursor='default'; b.onclick=null; });
@@ -218,6 +264,11 @@ function handleMsg(e) {
       ).join('');
     }
     $('startBtn').disabled = !selectedContinent;
+    if (m.mapContinents) {
+      $('mapContinents').innerHTML = m.mapContinents.map(c =>
+        `<button class="cont-btn${selectedMapContinent===c.name?' selected':''}" onclick="pickMapContinent('${c.name}')">${c.name} (${c.count})</button>`
+      ).join('');
+    }
   }
 
   if (m.type === 'question') {
@@ -227,20 +278,40 @@ function handleMsg(e) {
     $('roundInfo').textContent = `Round ${m.round}/${m.total}`;
     if (m.timer) { $('timerWrap').style.display='block'; $('timerBar').style.width='100%'; $('timerBar').className='timer-bar-fill'; $('timerText').textContent=m.timer+'s'; }
     else { $('timerWrap').style.display='none'; }
-    $('flagArea').textContent = m.flag;
-    if (m.img) { $('landmark').src = m.img; $('landmark').style.display = 'block'; }
-    else { $('landmark').style.display = 'none'; }
-    $('clueList').innerHTML = `<div class="clue">💡 ${m.clues[0]}</div>`;
-    $('pointsHint').textContent = `⚡ ${m.points} pts`;
-    $('scoreboard').innerHTML = m.players.map(p =>
+
+    // Reset all visual areas
+    $('flagArea').style.display='none'; $('landmark').style.display='none'; $('mapSvg').style.display='none'; $('clueList').innerHTML='';
+
+    if (m.gameType === 'map') {
+      $('mapSvg').style.display='block';
+      $('pointsHint').textContent = '⚡ 1 pt';
+      // Get continent members from server data
+      fetch('/countries-110m.json').then(r=>r.json()).then(()=>{
+        const MC={"Europe":["Albania","Austria","Belarus","Belgium","Bosnia and Herz.","Bulgaria","Croatia","Czechia","Denmark","Estonia","Finland","France","Germany","Greece","Hungary","Iceland","Ireland","Italy","Kosovo","Latvia","Lithuania","Luxembourg","Macedonia","Moldova","Montenegro","Netherlands","Norway","Poland","Portugal","Romania","Russia","Serbia","Slovakia","Slovenia","Spain","Sweden","Switzerland","Ukraine","United Kingdom"],"Asia":["Afghanistan","Armenia","Azerbaijan","Bangladesh","Bhutan","Brunei","Cambodia","China","Cyprus","Georgia","India","Indonesia","Iran","Iraq","Israel","Japan","Jordan","Kazakhstan","Kuwait","Kyrgyzstan","Laos","Lebanon","Malaysia","Mongolia","Myanmar","Nepal","North Korea","Oman","Pakistan","Philippines","Qatar","Saudi Arabia","South Korea","Sri Lanka","Syria","Taiwan","Tajikistan","Thailand","Timor-Leste","Turkey","Turkmenistan","United Arab Emirates","Uzbekistan","Vietnam","Yemen"],"North America":["Bahamas","Belize","Canada","Costa Rica","Cuba","Dominican Rep.","El Salvador","Guatemala","Haiti","Honduras","Jamaica","Mexico","Nicaragua","Panama","Puerto Rico","Trinidad and Tobago","United States of America"],"South America":["Argentina","Bolivia","Brazil","Chile","Colombia","Ecuador","Guyana","Paraguay","Peru","Suriname","Uruguay","Venezuela"]};
+        drawMapOnHost(m.topoName, m.continent, MC[m.continent]||[]);
+      });
+    } else if (m.gameType === 'local') {
+      $('pointsHint').textContent = `⚡ ${m.points} pts`;
+      $('clueList').innerHTML = renderLocalClue(m.clues[0]);
+    } else {
+      $('flagArea').style.display='block';
+      $('flagArea').textContent = m.flag;
+      if (m.img) { $('landmark').src = m.img; $('landmark').style.display = 'block'; }
+      $('clueList').innerHTML = `<div class="clue">💡 ${m.clues[0]}</div>`;
+      $('pointsHint').textContent = `⚡ ${m.points} pts`;
+    }
+
+    $('scoreboard').innerHTML = m.players?.map(p =>
       `<div class="score-card" style="background:${p.color}">${p.name}: ${p.score}</div>`
-    ).join('');
+    ).join('') || '';
+    const mapDN = {"United States of America":"United States","Dominican Rep.":"Dominican Republic","Czechia":"Czech Republic","Bosnia and Herz.":"Bosnia","Macedonia":"North Macedonia"};
+    const optDisplay = o => m.gameType==='map' ? (mapDN[o]||o) : o;
     $('optionsArea').style.display = 'none';
-    $('optionsArea').innerHTML = m.options.map(o => `<div class="opt">${o}</div>`).join('');
+    $('optionsArea').innerHTML = m.options.map(o => `<div class="opt">${optDisplay(o)}</div>`).join('');
     if (m.solo) {
       $('optionsArea').style.display = 'grid';
       $('optionsArea').innerHTML = m.options.map(o =>
-        `<div class="opt" style="cursor:pointer" onclick="soloAnswer(this,'${o.replace(/'/g,"\\'")}')">${o}</div>`
+        `<div class="opt" style="cursor:pointer" onclick="soloAnswer(this,'${o.replace(/'/g,"\\'")}')">${optDisplay(o)}</div>`
       ).join('');
       $('scoreboard').innerHTML = `<div class="score-card" style="background:#3b82f6">Score: ${soloScore}</div>`;
       $('answerStatus').textContent = 'Your turn!';
@@ -272,8 +343,12 @@ function handleMsg(e) {
 
   if (m.type === 'clue') {
     sfxClue();
-    $('clueList').innerHTML += `<div class="clue">💡 ${m.clue}</div>`;
-    $('pointsHint').textContent = `⚡ ${m.points} pts`;
+    if (m.clue && typeof m.clue === 'object') {
+      $('clueList').innerHTML += renderLocalClue(m.clue);
+    } else {
+      $('clueList').innerHTML += `<div class="clue">💡 ${m.clue}</div>`;
+    }
+    if (m.points) $('pointsHint').textContent = `⚡ ${m.points} pts`;
   }
 
   if (m.type === 'player_answered') {
@@ -345,7 +420,7 @@ function show(id) { document.querySelectorAll('.screen').forEach(s => s.classLis
 function pickContinent(c) { selectedContinent = c; document.querySelectorAll('.cont-btn').forEach(b => b.classList.toggle('selected', b.textContent.startsWith(c))); $('startBtn').disabled = false; }
 
 $('startBtn').onclick = () => {
-  ws.send(JSON.stringify({ type:'start', continent: selectedContinent, showFlags: $('showFlags').checked, timer: selectedTimer }));
+  ws.send(JSON.stringify({ type:'start', gameType:'trivia', continent: selectedContinent, showFlags: $('showFlags').checked, timer: selectedTimer }));
 };
 $('nextBtn').onclick = () => ws.send(JSON.stringify({type:'next'}));
 </script>

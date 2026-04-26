@@ -46,10 +46,34 @@ function sendTo(ws, msg) { if (ws?.readyState === 1) ws.send(JSON.stringify(msg)
 
 function lobbyState() {
   const continents = Object.entries(DATA).map(([name, arr]) => ({ name, count: arr.length }));
-  broadcast({ type: 'lobby', players: players.map(p => ({ id: p.id, name: p.name, color: p.color })), showFlags, continents });
+  const mapContinents = Object.entries(MAP_CONTINENTS).map(([name, arr]) => ({ name, count: arr.length }));
+  broadcast({ type: 'lobby', players: players.map(p => ({ id: p.id, name: p.name, color: p.color })), showFlags, continents, mapContinents });
 }
 
 let soloScore = 0;
+let gameType = 'trivia'; // trivia | map | local
+
+// Map game continent definitions (TopoJSON names)
+const MAP_CONTINENTS = {
+  "Europe":["Albania","Austria","Belarus","Belgium","Bosnia and Herz.","Bulgaria","Croatia","Czechia","Denmark","Estonia","Finland","France","Germany","Greece","Hungary","Iceland","Ireland","Italy","Kosovo","Latvia","Lithuania","Luxembourg","Macedonia","Moldova","Montenegro","Netherlands","Norway","Poland","Portugal","Romania","Russia","Serbia","Slovakia","Slovenia","Spain","Sweden","Switzerland","Ukraine","United Kingdom"],
+  "Asia":["Afghanistan","Armenia","Azerbaijan","Bangladesh","Bhutan","Brunei","Cambodia","China","Cyprus","Georgia","India","Indonesia","Iran","Iraq","Israel","Japan","Jordan","Kazakhstan","Kuwait","Kyrgyzstan","Laos","Lebanon","Malaysia","Mongolia","Myanmar","Nepal","North Korea","Oman","Pakistan","Philippines","Qatar","Saudi Arabia","South Korea","Sri Lanka","Syria","Taiwan","Tajikistan","Thailand","Timor-Leste","Turkey","Turkmenistan","United Arab Emirates","Uzbekistan","Vietnam","Yemen"],
+  "North America":["Bahamas","Belize","Canada","Costa Rica","Cuba","Dominican Rep.","El Salvador","Guatemala","Haiti","Honduras","Jamaica","Mexico","Nicaragua","Panama","Puerto Rico","Trinidad and Tobago","United States of America"],
+  "South America":["Argentina","Bolivia","Brazil","Chile","Colombia","Ecuador","Guyana","Paraguay","Peru","Suriname","Uruguay","Venezuela"]
+};
+const MAP_DISPLAY={"United States of America":"United States","Dominican Rep.":"Dominican Republic","Czechia":"Czech Republic","Bosnia and Herz.":"Bosnia","Macedonia":"North Macedonia"};
+
+// Local game data
+const LOCAL_CITIES = [
+  {name:"Issaquah",clues:["This city's name comes from a Native American word meaning 'the sound of birds'",{img:"https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400&h=250&fit=crop",caption:"Tiger Mountain trails are a local favorite"},"Home to Costco's headquarters","Salmon Days festival celebrates the return of salmon every October","Located at the base of the Cascades foothills along I-90","Gilman Village is a charming shopping area in converted farm buildings","Triple XXX Rootbeer is a legendary drive-in restaurant here"]},
+  {name:"Issaquah",clues:["Poo Poo Point is a famous paragliding launch site here","Lake Sammamish State Park is at the north end of this city",{img:"https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&h=250&fit=crop",caption:"Hikers flock to this city's mountain trails year-round"},"Boehm's Chocolates has been making Swiss chocolates here since 1956","Cougar Mountain Regional Wildland Park borders this city","The Issaquah Alps include Tiger, Squak, and Cougar mountains","Located about 15 miles east of Seattle via I-90"]},
+  {name:"Bellevue",clues:["Its name means 'beautiful view' in French","Downtown has a skyline that rivals many major cities",{img:"https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400&h=250&fit=crop",caption:"A growing skyline with luxury high-rises"},"Home to T-Mobile's headquarters","The city's population has more than doubled since 2000","Located between Lake Washington and Lake Sammamish","The Spring District is a massive new mixed-use development"]},
+  {name:"Bellevue",clues:["The Downtown Park has a circular 240-foot wide waterfall","This city has one of the highest-rated school districts in WA","Crossroads Mall has a famous international food court",{img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=250&fit=crop",caption:"The diverse food scene ranges from Din Tai Fung to local gems"},"Microsoft and Meta have major offices here","Main Street is lined with restaurants and boutiques in Old Bellevue","The annual Snowflake Lane holiday parade draws huge crowds"]},
+  {name:"Sammamish",clues:["Named after the lake on its western border","One of the wealthiest cities in Washington state","Beaver Lake Park is a popular spot for fishing and picnics",{img:"https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=400&h=250&fit=crop",caption:"Known for its spacious suburban lots and green spaces"},"The Sammamish Plateau was mostly farmland until the 1990s","Incorporated as a city in 1999, one of WA's newest cities","This city has no real downtown or commercial center"]},
+  {name:"Sammamish",clues:["Soaring Eagle Regional Park has 600 acres of forest trails","Big Rock Park has a massive glacial erratic boulder",{img:"https://images.unsplash.com/photo-1523712999610-f77fbcfc3843?w=400&h=250&fit=crop",caption:"Forested trails and nature preserves define this quiet city"},"Klahanie is one of the largest master-planned communities here","Evans Creek Preserve is a 168-acre nature area","Many tech workers live here and commute to Redmond or Bellevue","The Sammamish Commons is the closest thing to a town center"]},
+  {name:"Seattle",clues:["The Space Needle was built for the 1962 World's Fair",{img:"https://images.unsplash.com/photo-1502175353174-a7a70e73b362?w=400&h=250&fit=crop",caption:"This iconic tower defines the city skyline"},"Pike Place Market is one of the oldest farmers' markets in the US","The first Starbucks opened here in 1971","Known as the Emerald City for its lush greenery","Home to Amazon, Boeing, and Starbucks headquarters","Kurt Cobain and Jimi Hendrix both called this city home"]},
+  {name:"Seattle",clues:["The Fremont Troll sculpture lives under the Aurora Bridge","Capitol Hill is the heart of the city's nightlife and arts scene",{img:"https://images.unsplash.com/photo-1470004914212-05527e49370b?w=400&h=250&fit=crop",caption:"Ferries crisscross the waters around this city"},"It rains less annually than New York City (the reputation is a myth!)","The Underground Tour reveals the buried original city streets","Bruce Lee is buried in this city's Capitol Hill neighborhood","The city has more dogs than children"]},
+];
+const LOCAL_OPTIONS = ["Issaquah","Bellevue","Sammamish","Seattle"];
 
 function sendQuestion() {
   if (questionIdx >= countries.length) { endGame(); return; }
@@ -57,43 +81,67 @@ function sendQuestion() {
   clearTimeout(autoAdvanceTimer);
   clearInterval(roundTimer);
   const q = countries[questionIdx];
-  const pool = DATA[continent].filter(c => c.name !== q.name);
-  const opts = shuffle([q, ...shuffle(pool).slice(0, 3)]);
-  const origClues = q.clues;
-  const zhArr = ZH_CLUES[q.name] || [];
-  // Shuffle indices so both languages stay aligned
-  const indices = origClues.map((_,i) => i);
-  shuffle(indices);
-  const clues = indices.map(i => origClues[i]);
-  const zhClues = indices.map(i => zhArr[i] || origClues[i]);
-  currentQuestion = { ...q, clues, zhClues, options: opts.map(o => o.name) };
   answered = new Set();
   clueIdx = 0;
+  let base;
 
-  const base = {
-    type: 'question', round: questionIdx + 1, total: countries.length,
-    flag: showFlags ? q.flag : '❓', img: q.img || null,
-    clues: [clues[0]], clueNum: 1, maxClues: Math.min(MAX_CLUES, clues.length),
-    zhClues: [zhClues[0]],
-    options: currentQuestion.options,
-    points: MAX_CLUES,
-    timer: timerSec,
-  };
+  if (gameType === 'trivia') {
+    const pool = DATA[continent].filter(c => c.name !== q.name);
+    const opts = shuffle([q, ...shuffle(pool).slice(0, 3)]);
+    const origClues = q.clues;
+    const zhArr = ZH_CLUES[q.name] || [];
+    const indices = origClues.map((_,i) => i);
+    shuffle(indices);
+    const clues = indices.map(i => origClues[i]);
+    const zhClues = indices.map(i => zhArr[i] || origClues[i]);
+    currentQuestion = { ...q, clues, zhClues, options: opts.map(o => o.name) };
+    base = {
+      type: 'question', gameType: 'trivia', round: questionIdx + 1, total: countries.length,
+      flag: showFlags ? q.flag : '❓', img: q.img || null,
+      clues: [clues[0]], zhClues: [zhClues[0]],
+      clueNum: 1, maxClues: Math.min(MAX_CLUES, clues.length),
+      options: currentQuestion.options, points: MAX_CLUES, timer: timerSec,
+    };
+  } else if (gameType === 'map') {
+    const pool = MAP_CONTINENTS[continent].filter(n => n !== q.name);
+    const opts = shuffle([q.name, ...shuffle(pool).slice(0, 3)]);
+    currentQuestion = { name: q.name, options: opts };
+    base = {
+      type: 'question', gameType: 'map', round: questionIdx + 1, total: countries.length,
+      topoName: q.name, continent,
+      options: currentQuestion.options, points: 1, timer: timerSec,
+    };
+  } else if (gameType === 'local') {
+    const clues = shuffle([...q.clues]);
+    currentQuestion = { name: q.name, clues, options: LOCAL_OPTIONS };
+    base = {
+      type: 'question', gameType: 'local', round: questionIdx + 1, total: countries.length,
+      clues: [clues[0]], clueNum: 1, maxClues: Math.min(MAX_CLUES, clues.length),
+      options: LOCAL_OPTIONS, points: MAX_CLUES, timer: timerSec,
+    };
+  }
 
   sendTo(hostWs, { ...base, solo: players.length === 0, players: players.map(p => ({ id: p.id, name: p.name, score: p.score, color: p.color })) });
   players.forEach(p => sendTo(p.ws, base));
 
-  // Progressive clue reveal
-  clueIdx = 1;
-  clueTimer = setInterval(() => {
-    if (clueIdx >= Math.min(MAX_CLUES, clues.length) || answered.size >= players.length) {
-      clearInterval(clueTimer); return;
-    }
-    const reveal = { type: 'clue', clue: clues[clueIdx], zhClue: zhClues[clueIdx], clueNum: clueIdx + 1, points: MAX_CLUES - clueIdx };
-    if (hostWs?.readyState === 1) hostWs.send(JSON.stringify(reveal));
-    players.forEach(p => { if (p.ws?.readyState === 1) p.ws.send(JSON.stringify(reveal)); });
-    clueIdx++;
-  }, CLUE_INTERVAL);
+  // Progressive clue reveal (trivia + local only)
+  if (gameType !== 'map') {
+    const clues = currentQuestion.clues;
+    const zhClues = currentQuestion.zhClues;
+    clueIdx = 1;
+    clueTimer = setInterval(() => {
+      if (clueIdx >= Math.min(MAX_CLUES, clues.length) || (players.length > 0 && answered.size >= players.length)) {
+        clearInterval(clueTimer); return;
+      }
+      const reveal = { type: 'clue', clue: clues[clueIdx], clueNum: clueIdx + 1, points: MAX_CLUES - clueIdx };
+      if (zhClues) reveal.zhClue = zhClues[clueIdx];
+      if (hostWs?.readyState === 1) hostWs.send(JSON.stringify(reveal));
+      players.forEach(p => { if (p.ws?.readyState === 1) p.ws.send(JSON.stringify(reveal)); });
+      clueIdx++;
+    }, CLUE_INTERVAL);
+  } else {
+    clueIdx = 0;
+  }
 
   // Round timer countdown
   if (timerSec > 0) {
@@ -180,11 +228,22 @@ wss.on('connection', (ws) => {
     }
 
     if (msg.type === 'start' && isHost) {
+      gameType = msg.gameType || 'trivia';
       continent = msg.continent;
       showFlags = msg.showFlags !== false;
       timerSec = msg.timer || 0;
-      roundsPerGame = Math.min(msg.rounds || 8, DATA[continent].length);
-      countries = shuffle([...DATA[continent]]).slice(0, roundsPerGame);
+
+      if (gameType === 'trivia') {
+        roundsPerGame = Math.min(msg.rounds || 8, DATA[continent].length);
+        countries = shuffle([...DATA[continent]]).slice(0, roundsPerGame);
+      } else if (gameType === 'map') {
+        const pool = MAP_CONTINENTS[continent] || [];
+        roundsPerGame = Math.min(msg.rounds || 15, pool.length);
+        countries = shuffle([...pool]).slice(0, roundsPerGame).map(n => ({ name: n, topoName: n, continent }));
+      } else if (gameType === 'local') {
+        roundsPerGame = Math.min(msg.rounds || 12, LOCAL_CITIES.length);
+        countries = shuffle([...LOCAL_CITIES]).slice(0, roundsPerGame);
+      }
       questionIdx = 0;
       players.forEach(p => p.score = 0);
       soloScore = 0;
@@ -197,7 +256,7 @@ wss.on('connection', (ws) => {
       clearInterval(clueTimer);
       clearInterval(roundTimer);
       const correct = msg.answer === currentQuestion.name;
-      const pts = correct ? Math.max(1, MAX_CLUES - clueIdx + 1) : 0;
+      const pts = correct ? (gameType === 'map' ? 1 : Math.max(1, MAX_CLUES - clueIdx + 1)) : 0;
       soloScore += pts;
       sendTo(hostWs, { type: 'solo_result', correct, correctAnswer: currentQuestion.name, pts, totalScore: soloScore });
       autoAdvanceTimer = setTimeout(() => { questionIdx++; sendQuestion(); }, 3000);
@@ -207,7 +266,7 @@ wss.on('connection', (ws) => {
       answered.add(playerId);
       const correct = msg.answer === currentQuestion.name;
       const p = players.find(x => x.id === playerId);
-      if (correct && p) p.score += Math.max(1, MAX_CLUES - clueIdx + 1);
+      if (correct && p) p.score += gameType === 'map' ? 1 : Math.max(1, MAX_CLUES - clueIdx + 1);
 
       sendTo(hostWs, {
         type: 'player_answered', playerId, name: p?.name, answer: msg.answer, correct,

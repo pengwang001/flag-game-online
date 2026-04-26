@@ -41,6 +41,8 @@ input{width:100%;padding:14px;border:2px solid #333;border-radius:10px;backgroun
 .timer-text{font-size:1em;font-weight:bold;margin-top:2px}
 </style>
 </head><body>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://d3js.org/topojson.v3.min.js"></script>
 <h1 id="title">🌍 Guess the Country!</h1>
 
 <div id="join" class="screen active">
@@ -63,6 +65,7 @@ input{width:100%;padding:14px;border:2px solid #333;border-radius:10px;backgroun
   <div class="points" id="pointsHint"></div>
   <div class="flag" id="flag"></div>
   <img id="landmark" class="landmark" style="display:none">
+  <svg id="mapSvg" width="380" height="260" style="display:none;background:#0f1629;border-radius:10px;margin:8px auto"></svg>
   <div id="clueList" class="clues"></div>
   <div id="options" class="options"></div>
   <div id="feedback"></div>
@@ -123,6 +126,15 @@ function sfxWrong(){playTone(200,.15,'square',0.2);setTimeout(()=>playTone(150,.
 function sfxNewRound(){playTone(440,.08,'sine',0.15)}
 function sfxClue(){playTone(800,.05,'sine',0.15)}
 
+let allMapFeatures = null;
+fetch('/countries-110m.json').then(r=>r.json()).then(data=>{
+  allMapFeatures = topojson.feature(data, data.objects.countries).features;
+}).catch(()=>{});
+const MC={"Europe":["Albania","Austria","Belarus","Belgium","Bosnia and Herz.","Bulgaria","Croatia","Czechia","Denmark","Estonia","Finland","France","Germany","Greece","Hungary","Iceland","Ireland","Italy","Kosovo","Latvia","Lithuania","Luxembourg","Macedonia","Moldova","Montenegro","Netherlands","Norway","Poland","Portugal","Romania","Russia","Serbia","Slovakia","Slovenia","Spain","Sweden","Switzerland","Ukraine","United Kingdom"],"Asia":["Afghanistan","Armenia","Azerbaijan","Bangladesh","Bhutan","Brunei","Cambodia","China","Cyprus","Georgia","India","Indonesia","Iran","Iraq","Israel","Japan","Jordan","Kazakhstan","Kuwait","Kyrgyzstan","Laos","Lebanon","Malaysia","Mongolia","Myanmar","Nepal","North Korea","Oman","Pakistan","Philippines","Qatar","Saudi Arabia","South Korea","Sri Lanka","Syria","Taiwan","Tajikistan","Thailand","Timor-Leste","Turkey","Turkmenistan","United Arab Emirates","Uzbekistan","Vietnam","Yemen"],"North America":["Bahamas","Belize","Canada","Costa Rica","Cuba","Dominican Rep.","El Salvador","Guatemala","Haiti","Honduras","Jamaica","Mexico","Nicaragua","Panama","Puerto Rico","Trinidad and Tobago","United States of America"],"South America":["Argentina","Bolivia","Brazil","Chile","Colombia","Ecuador","Guyana","Paraguay","Peru","Suriname","Uruguay","Venezuela"]};
+const MAP_DN={"United States of America":"United States","Dominican Rep.":"Dominican Republic","Czechia":"Czech Republic","Bosnia and Herz.":"Bosnia","Macedonia":"North Macedonia"};
+function drawMapOnPlayer(topoName,cont){const svg=d3.select('#mapSvg');svg.selectAll('*').remove();if(!allMapFeatures)return;const members=MC[cont]||[];const cf=allMapFeatures.filter(f=>members.includes(f.properties.name));const t=allMapFeatures.find(f=>f.properties.name===topoName);if(!cf.length||!t)return;const proj=d3.geoMercator().fitSize([360,240],{type:'FeatureCollection',features:cf});const p=d3.geoPath().projection(proj);svg.selectAll('.bg').data(cf).enter().append('path').attr('d',p).attr('fill','#1e293b').attr('stroke','#334155').attr('stroke-width',.3);svg.append('path').datum(t).attr('d',p).attr('fill','#f59e0b').attr('stroke','#1a1a2e').attr('stroke-width',.5)}
+function renderLocalClue(c){if(typeof c==='string')return`<div class="clue">💡 ${c}</div>`;return`<div class="clue">📸 ${c.caption}<img src="${c.img}" style="max-width:100%;max-height:150px;border-radius:8px;margin-top:6px"></div>`}
+
 function connect() {
   ws = new WebSocket(`${proto}://${location.host}`);
   ws.onmessage = e => handle(JSON.parse(e.data));
@@ -151,21 +163,40 @@ function handle(m) {
     $('roundInfo').textContent = lang==='zh' ? `${t('round')} ${m.round}/${m.total} 题` : `${t('round')} ${m.round}/${m.total}`;
     if (m.timer) { $('timerWrap').style.display='block'; $('timerBar').style.width='100%'; $('timerBar').className='timer-bar-fill'; $('timerText').textContent=m.timer+'s'; }
     else { $('timerWrap').style.display='none'; }
-    $('flag').textContent = m.flag;
-    if (m.img) { $('landmark').src = m.img; $('landmark').style.display = 'block'; }
-    else { $('landmark').style.display = 'none'; }
-    $('clueList').innerHTML = `<div class="clue">💡 ${lang==='zh' && m.zhClues?.[0] ? m.zhClues[0] : m.clues[0]}</div>`;
-    $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
+
+    // Reset visuals
+    $('flag').style.display='none'; $('landmark').style.display='none'; $('mapSvg').style.display='none'; $('clueList').innerHTML='';
+
+    if (m.gameType === 'map') {
+      $('mapSvg').style.display='block';
+      $('pointsHint').textContent = '⚡ 1 pt';
+      drawMapOnPlayer(m.topoName, m.continent);
+    } else if (m.gameType === 'local') {
+      $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
+      $('clueList').innerHTML = renderLocalClue(m.clues[0]);
+    } else {
+      $('flag').style.display='block';
+      $('flag').textContent = m.flag;
+      if (m.img) { $('landmark').src = m.img; $('landmark').style.display = 'block'; }
+      $('clueList').innerHTML = `<div class="clue">💡 ${lang==='zh' && m.zhClues?.[0] ? m.zhClues[0] : m.clues[0]}</div>`;
+      $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
+    }
+
     $('feedback').innerHTML = '';
+    const optDisplay = o => m.gameType==='map' ? (MAP_DN[o]||o) : (m.gameType==='local' ? o : cn(o));
     $('options').innerHTML = m.options.map(o =>
-      `<button class="opt" data-en="${o}" onclick="answer(this,'${o.replace(/'/g,"\\'")}')">${cn(o)}</button>`
+      `<button class="opt" data-en="${o}" onclick="answer(this,'${o.replace(/'/g,"\\'")}')">${optDisplay(o)}</button>`
     ).join('');
   }
 
   if (m.type === 'clue') {
     sfxClue();
-    $('clueList').innerHTML += `<div class="clue">💡 ${lang==='zh' && m.zhClue ? m.zhClue : m.clue}</div>`;
-    $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
+    if (m.clue && typeof m.clue === 'object') {
+      $('clueList').innerHTML += renderLocalClue(m.clue);
+    } else {
+      $('clueList').innerHTML += `<div class="clue">💡 ${lang==='zh' && m.zhClue ? m.zhClue : m.clue}</div>`;
+    }
+    if (m.points) $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
   }
 
   if (m.type === 'timer_tick') {
