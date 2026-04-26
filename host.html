@@ -375,28 +375,37 @@ function toggleMusic(){
 }
 function sfxLobbyMusic(){
   if(lobbyMusicTimer)return;
-  const q=375,h=750,dq=563,e=188,v=0.18;
-  // Jeopardy "Think!" theme — actual melody
-  // C4=262, D4=294, E4=330, F4=349, G4=392, A4=440, Bb4=466, C5=523, D5=587, F3=175
-  const notes=[
-    // Bar 1-2: pickup + main phrase
-    [262,q],[349,q],[262,q],[175,q],
-    [262,q],[349,q],[262,q],[0,q],
-    // Bar 3-4
-    [262,q],[349,q],[262,q],[349,q],
-    [330,dq],[294,e],[262,h],
-    // Bar 5-6 (repeat with variation)
-    [262,q],[349,q],[262,q],[175,q],
-    [262,q],[349,q],[262,q],[0,q],
-    // Bar 7-8 (ending phrase)
-    [349,q],[392,q],[440,q],[466,q],
-    [523,h],[0,h],
+  const bpm=200,b=60000/bpm,h=b*2,q=b,e=b/2,de=b*0.75,s=b/4,v=0.15;
+  // Jeopardy "Think!" theme — accurate transcription in C
+  // Uses two voices: melody (sine) + bass (triangle)
+  const melody=[
+    // Phrase 1: the iconic opening
+    [262,q],[349,q],[262,q],[349,q], // C F C F
+    [262,q],[349,q],[330,q],[294,q], // C F E D
+    [262,q],[349,q],[262,q],[349,q], // C F C F
+    [262,h+q],[0,q],                 // C (held)...rest
+    // Phrase 2: repeat with rising ending
+    [262,q],[349,q],[262,q],[349,q], // C F C F
+    [262,q],[349,q],[330,q],[294,q], // C F E D
+    [262,q],[294,q],[330,q],[349,q], // C D E F (ascending)
+    [330,q],[294,q],[262,q],[0,q],   // E D C rest
+    // Phrase 3: the chromatic climb ending
+    [349,q],[330,q],[349,q],[392,q], // F E F G
+    [440,q],[466,q],[523,h],         // A Bb C (triumphant)
+    [0,h],
+  ];
+  const bass=[
+    [131,h],[175,h],[131,h],[175,h],
+    [131,h],[175,h],[131,h+q],[0,q],
+    [131,h],[175,h],[131,h],[175,h],
+    [131,h],[175,h],[131,h+q],[0,q],
+    [175,h],[131,h],[175,q],[196,q],[220,q],[233,q],
+    [262,h],[0,h],
   ];
   let t=0;
-  const ids=notes.map(([f,d])=>{
-    const id=f?setTimeout(()=>playTone(f,d/1000*0.85,'sine',v),t):null;
-    t+=d;return id;
-  });
+  melody.forEach(([f,d])=>{if(f)setTimeout(()=>playTone(f,d/1000*0.85,'sine',v),t);t+=d;});
+  let tb=0;
+  bass.forEach(([f,d])=>{if(f)setTimeout(()=>playTone(f,d/1000*0.85,'triangle',v*0.6),tb);tb+=d;});
   lobbyMusicTimer=setTimeout(()=>{lobbyMusicTimer=null;if(musicOn)sfxLobbyMusic();},t);
 }
 function stopLobbyMusic(){
