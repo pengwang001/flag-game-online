@@ -17,6 +17,7 @@ eval(fs.readFileSync(path.join(__dirname, 'zh-clues.js'), 'utf8').replace('const
 let CAPITALS;
 eval(fs.readFileSync(path.join(__dirname, 'capitals.js'), 'utf8').replace('const CAPITALS', 'CAPITALS'));
 eval(fs.readFileSync(path.join(__dirname, 'us-states-clues.js'), 'utf8').replace('const US_STATE_CLUES', 'US_STATE_CLUES'));
+eval(fs.readFileSync(path.join(__dirname, 'zh-us-clues.js'), 'utf8').replace('const ZH_US_STATE_CLUES', 'ZH_US_STATE_CLUES'));
 
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
@@ -157,12 +158,17 @@ function sendQuestion() {
   } else if (gameType === 'usmap') {
     const pool = US_STATES.filter(n => n !== q.name);
     const opts = shuffle([q.name, ...shuffle(pool).slice(0, 3)]);
-    const clues = shuffle([...(US_STATE_CLUES[q.name] || [])]);
-    currentQuestion = { name: q.name, clues, options: opts };
+    const origClues = US_STATE_CLUES[q.name] || [];
+    const zhArr = ZH_US_STATE_CLUES[q.name] || [];
+    const indices = origClues.map((_,i) => i);
+    shuffle(indices);
+    const clues = indices.map(i => origClues[i]);
+    const zhClues = indices.map(i => zhArr[i] || origClues[i]);
+    currentQuestion = { name: q.name, clues, zhClues, options: opts };
     base = {
       type: 'question', gameType: 'usmap', round: questionIdx + 1, total: countries.length,
       stateName: q.name,
-      clues: [clues[0]], clueNum: 1, maxClues: Math.min(MAX_CLUES, clues.length),
+      clues: [clues[0]], zhClues: [zhClues[0]], clueNum: 1, maxClues: Math.min(MAX_CLUES, clues.length),
       options: currentQuestion.options, points: MAX_CLUES, timer: timerSec,
     };
   } else if (gameType === 'camap') {

@@ -200,7 +200,7 @@ function handle(m) {
     } else if (m.gameType === 'usmap') {
       $('mapSvg').style.display='block';
       $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
-      $('clueList').innerHTML = `<div class="clue">💡 ${m.clues[0]}</div>`;
+      $('clueList').innerHTML = `<div class="clue">💡 ${lang==='zh' && m.zhClues?.[0] ? m.zhClues[0] : m.clues[0]}</div>`;
       drawUsMapOnPlayer(m.stateName);
     } else if (m.gameType === 'camap') {
       $('mapSvg').style.display='block';
