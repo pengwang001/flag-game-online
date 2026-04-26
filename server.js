@@ -225,11 +225,14 @@ function sendQuestion() {
 }
 
 // Leaderboard (top 20, persists in memory)
+const LB_FILE = path.join(__dirname, 'leaderboard.json');
 let leaderboard = [];
+try { leaderboard = JSON.parse(fs.readFileSync(LB_FILE, 'utf8')); } catch(e) {}
 function addToLeaderboard(name, score, continent) {
   leaderboard.push({ name, score, continent, date: new Date().toISOString().slice(0,10) });
   leaderboard.sort((a,b) => b.score - a.score);
   leaderboard = leaderboard.slice(0, 20);
+  fs.writeFileSync(LB_FILE, JSON.stringify(leaderboard));
 }
 
 function endGame() {
