@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: flag-game
+    runtime: node
+    buildCommand: npm install --registry https://registry.npmjs.org
+    startCommand: node server.js
+    plan: free
