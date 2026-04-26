@@ -121,6 +121,13 @@ const proto = location.protocol === 'https:' ? 'wss' : 'ws';
 let ws;
 let selectedContinent = null;
 let selectedTimer = 0;
+let soloScore = 0;
+
+function soloAnswer(btn, name) {
+  document.querySelectorAll('.opt').forEach(b => { b.style.cursor='default'; b.onclick=null; });
+  btn.style.borderColor = '#f59e0b';
+  ws.send(JSON.stringify({ type: 'host_answer', answer: name }));
+}
 
 function setGameMode(mode) {
   $('triviaOptions').style.display = mode==='trivia' ? 'block' : 'none';
@@ -208,7 +215,7 @@ function handleMsg(e) {
         `<button class="cont-btn${selectedContinent===c.name?' selected':''}" onclick="pickContinent('${c.name}')">${c.name} (${c.count})</button>`
       ).join('');
     }
-    $('startBtn').disabled = !m.players.length || !selectedContinent;
+    $('startBtn').disabled = !selectedContinent;
   }
 
   if (m.type === 'question') {
@@ -228,9 +235,29 @@ function handleMsg(e) {
     ).join('');
     $('optionsArea').style.display = 'none';
     $('optionsArea').innerHTML = m.options.map(o => `<div class="opt">${o}</div>`).join('');
+    if (m.solo) {
+      $('optionsArea').style.display = 'grid';
+      $('optionsArea').innerHTML = m.options.map(o =>
+        `<div class="opt" style="cursor:pointer" onclick="soloAnswer(this,'${o.replace(/'/g,"\\'")}')">${o}</div>`
+      ).join('');
+      $('scoreboard').innerHTML = `<div class="score-card" style="background:#3b82f6">Score: ${soloScore}</div>`;
+      $('answerStatus').textContent = 'Your turn!';
+    }
     $('nextBtn').style.display = 'none';
     $('answeredFill').style.width = '0%';
-    $('answerStatus').textContent = 'Waiting for answers...';
+  }
+
+  if (m.type === 'solo_result') {
+    soloScore = m.totalScore;
+    m.correct ? sfxCorrect() : sfxWrong();
+    document.querySelectorAll('.opt').forEach(el => {
+      if (el.textContent === m.correctAnswer) el.classList.add('correct');
+      else if (el.style.borderColor) el.classList.add('wrong');
+    });
+    $('answerStatus').textContent = m.correct ? `✅ Correct! +${m.pts}` : `❌ It was ${m.correctAnswer}`;
+    $('scoreboard').innerHTML = `<div class="score-card" style="background:#3b82f6">Score: ${soloScore}</div>`;
+    let sec = 3; $('nextBtn').style.display = 'inline-block'; $('nextBtn').textContent = `Next (${sec}s)`;
+    const cd = setInterval(() => { sec--; if(sec>0) $('nextBtn').textContent=`Next (${sec}s)`; else clearInterval(cd); }, 1000);
   }
 
   if (m.type === 'timer_tick') {
@@ -290,14 +317,18 @@ function handleMsg(e) {
     show('results');
     sfxGameOver();
     spawnConfetti();
-    const medals = ['🥇','🥈','🥉'];
-    const winner = m.players[0];
-    $('resultList').innerHTML =
-      `<div class="winner-reveal"><div class="winner-name">${medals[0]} ${winner.name}</div><div style="font-size:1.3em;color:#f59e0b;margin-bottom:15px">${winner.score} pts — Champion!</div></div>` +
-      m.players.slice(1).map((p,i) =>
-        `<li style="background:${p.color};animation:winnerPop .4s ease-out ${(i+1)*0.2}s both">${medals[i+1]||'  '} ${p.name} <span>${p.score} pts</span></li>`
-      ).join('');
-    // Second confetti burst
+    if (m.players.length === 0) {
+      // Solo mode
+      $('resultList').innerHTML = `<div class="winner-reveal"><div class="winner-name">🎯 ${soloScore} pts</div><div style="font-size:1.1em;color:#888">Great game!</div></div>`;
+    } else {
+      const medals = ['🥇','🥈','🥉'];
+      const winner = m.players[0];
+      $('resultList').innerHTML =
+        `<div class="winner-reveal"><div class="winner-name">${medals[0]} ${winner.name}</div><div style="font-size:1.3em;color:#f59e0b;margin-bottom:15px">${winner.score} pts — Champion!</div></div>` +
+        m.players.slice(1).map((p,i) =>
+          `<li style="background:${p.color};animation:winnerPop .4s ease-out ${(i+1)*0.2}s both">${medals[i+1]||'  '} ${p.name} <span>${p.score} pts</span></li>`
+        ).join('');
+    }
     setTimeout(spawnConfetti, 2000);
   }
 };

@@ -49,6 +49,8 @@ function lobbyState() {
   broadcast({ type: 'lobby', players: players.map(p => ({ id: p.id, name: p.name, color: p.color })), showFlags, continents });
 }
 
+let soloScore = 0;
+
 function sendQuestion() {
   if (questionIdx >= countries.length) { endGame(); return; }
   clearInterval(clueTimer);
@@ -78,7 +80,7 @@ function sendQuestion() {
     timer: timerSec,
   };
 
-  sendTo(hostWs, { ...base, players: players.map(p => ({ id: p.id, name: p.name, score: p.score, color: p.color })) });
+  sendTo(hostWs, { ...base, solo: players.length === 0, players: players.map(p => ({ id: p.id, name: p.name, score: p.score, color: p.color })) });
   players.forEach(p => sendTo(p.ws, base));
 
   // Progressive clue reveal
@@ -167,7 +169,6 @@ wss.on('connection', (ws) => {
     }
 
     if (msg.type === 'start' && isHost) {
-      if (!players.length) { sendTo(ws, { type: 'error', msg: 'Need at least 1 player' }); return; }
       continent = msg.continent;
       showFlags = msg.showFlags !== false;
       timerSec = msg.timer || 0;
@@ -175,12 +176,23 @@ wss.on('connection', (ws) => {
       countries = shuffle([...DATA[continent]]).slice(0, roundsPerGame);
       questionIdx = 0;
       players.forEach(p => p.score = 0);
+      soloScore = 0;
       state = 'playing';
       sendQuestion();
     }
 
-    if (msg.type === 'answer' && state === 'playing' && playerId) {
-      if (answered.has(playerId)) return;
+    // Solo mode: host answers directly
+    if (msg.type === 'host_answer' && isHost && state === 'playing' && players.length === 0) {
+      clearInterval(clueTimer);
+      clearInterval(roundTimer);
+      const correct = msg.answer === currentQuestion.name;
+      const pts = correct ? Math.max(1, MAX_CLUES - clueIdx + 1) : 0;
+      soloScore += pts;
+      sendTo(hostWs, { type: 'solo_result', correct, correctAnswer: currentQuestion.name, pts, totalScore: soloScore });
+      autoAdvanceTimer = setTimeout(() => { questionIdx++; sendQuestion(); }, 3000);
+    }
+
+    if (msg.type === 'answer' && state === 'playing' && playerId) {      if (answered.has(playerId)) return;
       answered.add(playerId);
       const correct = msg.answer === currentQuestion.name;
       const p = players.find(x => x.id === playerId);
