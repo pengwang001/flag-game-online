@@ -129,6 +129,7 @@ const server = http.createServer((req, res) => {
   else if (req.url === '/data.js') file = 'data.js';
   else if (req.url === '/zh-clues.js') file = 'zh-clues.js';
   else if (req.url === '/countries-110m.json') { file = 'countries-110m.json'; }
+  else if (req.url === '/gamebackground.png') { file = 'gamebackground.png'; }
   else if (req.url === '/map') file = 'map.html';
   else if (req.url === '/qr') {
     const playUrl = `${req.headers['x-forwarded-proto']||'http'}://${req.headers.host}/play`;
