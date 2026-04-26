@@ -11,9 +11,9 @@ h1{font-size:1.8em;margin-bottom:10px}
 .screen{display:none;width:100%;max-width:800px;text-align:center}
 .screen.active{display:block}
 #mapSvg{background:#0f1629;border-radius:12px;margin:10px auto;display:block}
-.country-shape{fill:#3b82f6;stroke:#1a1a2e;stroke-width:.5}
 .continent-bg{fill:#1e293b;stroke:#334155;stroke-width:.3}
-.highlight{fill:#f59e0b}
+.highlight{fill:#f59e0b;stroke:#1a1a2e;stroke-width:.5}
+.silhouette{fill:#3b82f6;stroke:#1a1a2e;stroke-width:.5}
 .options{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:500px;margin:15px auto}
 .opt{padding:14px;border:2px solid #333;border-radius:10px;background:#16213e;color:#eee;font-size:1.1em;cursor:pointer;transition:.15s}
 .opt:hover{border-color:#3b82f6}
@@ -26,30 +26,36 @@ h1{font-size:1.8em;margin-bottom:10px}
 .result{font-size:1.3em;margin:10px 0;padding:12px;border-radius:10px}
 .result.correct{background:#16332e;color:#22c55e}
 .result.wrong{background:#331616;color:#ef4444}
+.cont-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:500px;margin:15px auto}
+.cont-btn{padding:15px;border:2px solid #333;border-radius:10px;background:#16213e;color:#eee;font-size:1.1em;cursor:pointer}
+.cont-btn:hover{border-color:#3b82f6}
+.cont-btn.selected{border-color:#3b82f6;background:#1a3a5c}
+.mode-toggle{display:flex;gap:8px;justify-content:center;margin:10px 0;flex-wrap:wrap}
+.mode-btn{padding:8px 16px;border:2px solid #333;border-radius:10px;background:#16213e;color:#eee;cursor:pointer;font-size:1em}
+.mode-btn.active{border-color:#3b82f6;background:#1a3a5c}
 .final-list{list-style:none;max-width:400px;margin:15px auto}
 .final-list li{padding:10px;margin:5px 0;border-radius:8px;background:#16213e;display:flex;justify-content:space-between;font-size:1.1em}
-.mode-toggle{display:flex;gap:8px;justify-content:center;margin:10px 0}
-.mode-btn{padding:10px 20px;border:2px solid #333;border-radius:10px;background:#16213e;color:#eee;cursor:pointer;font-size:1em}
-.mode-btn.active{border-color:#3b82f6;background:#1a3a5c}
 </style>
 </head><body>
 <h1>🗺️ Guess the Country!</h1>
 
 <div id="menu" class="screen active">
-  <p style="color:#888;margin:10px 0">Map Edition — Prototype</p>
-  <h3>Difficulty:</h3>
+  <p style="color:#888;margin:10px 0">Map Edition</p>
+  <h3>Pick a continent:</h3>
+  <div class="cont-grid" id="contGrid"></div>
+  <h3 style="margin-top:15px">Mode:</h3>
   <div class="mode-toggle">
-    <button class="mode-btn active" onclick="setMode('silhouette')">Silhouette only</button>
-    <button class="mode-btn" onclick="setMode('continent')">Show on continent</button>
-    <button class="mode-btn" onclick="setMode('progressive')">Progressive (both)</button>
+    <button class="mode-btn active" onclick="setMode('silhouette')">🔲 Silhouette</button>
+    <button class="mode-btn" onclick="setMode('continent')">🗺️ On continent</button>
+    <button class="mode-btn" onclick="setMode('progressive')">🔄 Progressive</button>
   </div>
-  <button class="next-btn" style="margin-top:20px" onclick="startGame()">Start (10 rounds)</button>
+  <button class="next-btn" id="startBtn" style="margin-top:20px;opacity:.4;cursor:default" onclick="startGame()">Start Game</button>
 </div>
 
 <div id="game" class="screen">
-  <div class="score-bar" id="scoreBar">Round 1/10 — Score: 0</div>
-  <div class="phase-label" id="phaseLabel">What country is this?</div>
-  <svg id="mapSvg" width="500" height="350"></svg>
+  <div class="score-bar" id="scoreBar"></div>
+  <div class="phase-label" id="phaseLabel"></div>
+  <svg id="mapSvg" width="550" height="380"></svg>
   <div id="options" class="options"></div>
   <div id="feedback"></div>
   <button class="next-btn" id="nextBtn" style="display:none" onclick="nextRound()">Next →</button>
@@ -57,63 +63,69 @@ h1{font-size:1.8em;margin-bottom:10px}
 
 <div id="results" class="screen">
   <h2>🏆 Results</h2>
-  <ol id="resultList" class="final-list"></ol>
+  <ul id="resultList" class="final-list"></ul>
   <button class="next-btn" onclick="location.reload()">Play Again</button>
 </div>
 
 <script>
-let topoData, allFeatures, continentFeatures;
-let gameMode = 'silhouette'; // silhouette | continent | progressive
-let countries = [];
-let round = 0, score = 0;
-let currentCountry = null;
-let phase = 1; // for progressive mode: 1=silhouette, 2=continent
-
-// 10 easily recognizable countries for prototype
-const GAME_COUNTRIES = [
-  "Japan","Italy","Australia","Brazil","India",
-  "France","United Kingdom","Mexico","China","South Africa"
-];
-
-// Continent groupings for overlay
-const CONTINENT_MAP = {
-  "Japan":"Asia","India":"Asia","China":"Asia",
-  "Italy":"Europe","France":"Europe","United Kingdom":"Europe",
-  "Brazil":"South America","Mexico":"North America",
-  "Australia":"Oceania","South Africa":"Africa"
+// TopoJSON name → display name mapping
+const DISPLAY_NAMES = {
+  "United States of America":"United States","Dominican Rep.":"Dominican Republic",
+  "Czechia":"Czech Republic","Bosnia and Herz.":"Bosnia","Macedonia":"North Macedonia",
+  "Dem. Rep. Congo":"DR Congo","Central African Rep.":"Central African Republic",
+  "S. Sudan":"South Sudan","Eq. Guinea":"Equatorial Guinea","Solomon Is.":"Solomon Islands",
+  "Falkland Is.":"Falkland Islands","Côte d'Ivoire":"Ivory Coast","eSwatini":"Eswatini",
+  "W. Sahara":"Western Sahara","Fr. S. Antarctic Lands":"French Southern Lands",
+  "N. Cyprus":"Northern Cyprus"
 };
-const CONTINENT_MEMBERS = {
-  "Asia":["Japan","India","China","South Korea","Thailand","Vietnam","Turkey","Indonesia","Malaysia","Philippines","Myanmar","Kazakhstan","Mongolia","Nepal","Bangladesh","Sri Lanka","Cambodia","Pakistan","Iran","Iraq","Saudi Arabia","Afghanistan","Yemen","Oman","Laos","North Korea","Tajikistan","Kyrgyzstan","Turkmenistan","Georgia","Armenia","Azerbaijan"],
-  "Europe":["Italy","France","United Kingdom","Germany","Spain","Portugal","Poland","Norway","Sweden","Finland","Greece","Romania","Ukraine","Ireland","Austria","Switzerland","Netherlands","Belgium","Czech Rep.","Hungary","Denmark","Serbia","Croatia","Bulgaria","Slovakia","Lithuania","Latvia","Estonia","Slovenia","Bosnia and Herz.","Albania","North Macedonia","Moldova","Montenegro","Kosovo","Iceland","Belarus"],
-  "South America":["Brazil","Argentina","Colombia","Peru","Chile","Ecuador","Venezuela","Bolivia","Paraguay","Uruguay","Guyana","Suriname"],
-  "North America":["Mexico","United States of America","Canada","Cuba","Guatemala","Honduras","Nicaragua","Costa Rica","Panama","Haiti","Dominican Rep.","Jamaica","Trinidad and Tobago","Belize","El Salvador"],
-  "Oceania":["Australia","New Zealand","Papua New Guinea","Fiji","Solomon Is.","Vanuatu","New Caledonia"],
-  "Africa":["South Africa","Nigeria","Egypt","Kenya","Ethiopia","Morocco","Ghana","Tanzania","Algeria","Libya","Sudan","South Sudan","Dem. Rep. Congo","Somalia","Mozambique","Madagascar","Cameroon","Ivory Coast","Niger","Mali","Burkina Faso","Malawi","Zambia","Senegal","Chad","Zimbabwe","Guinea","Rwanda","Benin","Burundi","Tunisia","Togo","Sierra Leone","Central African Rep.","Eritrea","Congo","Liberia","Mauritania","Namibia","Botswana","Lesotho","Gambia","Gabon","eSwatini","Eq. Guinea","Djibouti","Uganda","Angola"]
+function displayName(topoName) { return DISPLAY_NAMES[topoName] || topoName; }
+
+// Continent definitions using TopoJSON names
+const CONTINENTS = {
+  "Europe": ["Albania","Austria","Belarus","Belgium","Bosnia and Herz.","Bulgaria","Croatia","Czechia","Denmark","Estonia","Finland","France","Germany","Greece","Hungary","Iceland","Ireland","Italy","Kosovo","Latvia","Lithuania","Luxembourg","Macedonia","Moldova","Montenegro","Netherlands","Norway","Poland","Portugal","Romania","Russia","Serbia","Slovakia","Slovenia","Spain","Sweden","Switzerland","Ukraine","United Kingdom"],
+  "Asia": ["Afghanistan","Armenia","Azerbaijan","Bangladesh","Bhutan","Brunei","Cambodia","China","Cyprus","Georgia","India","Indonesia","Iran","Iraq","Israel","Japan","Jordan","Kazakhstan","Kuwait","Kyrgyzstan","Laos","Lebanon","Malaysia","Mongolia","Myanmar","Nepal","North Korea","Oman","Pakistan","Philippines","Qatar","Saudi Arabia","South Korea","Sri Lanka","Syria","Taiwan","Tajikistan","Thailand","Timor-Leste","Turkey","Turkmenistan","United Arab Emirates","Uzbekistan","Vietnam","Yemen"],
+  "North America": ["Bahamas","Belize","Canada","Costa Rica","Cuba","Dominican Rep.","El Salvador","Guatemala","Haiti","Honduras","Jamaica","Mexico","Nicaragua","Panama","Puerto Rico","Trinidad and Tobago","United States of America"],
+  "South America": ["Argentina","Bolivia","Brazil","Chile","Colombia","Ecuador","Guyana","Paraguay","Peru","Suriname","Uruguay","Venezuela"]
 };
 
+let allFeatures, gameMode='silhouette', selectedContinent=null;
+let countries=[], round=0, score=0, currentCountry=null, phase=1;
 const svg = d3.select("#mapSvg");
-const $ = id => document.getElementById(id);
+const W=550, H=380;
+const $=id=>document.getElementById(id);
 
-// Load map data
+// Build continent buttons
+function buildMenu() {
+  $('contGrid').innerHTML = Object.entries(CONTINENTS).map(([name,arr]) =>
+    `<button class="cont-btn" onclick="pickCont('${name}')">${name} (${arr.length})</button>`
+  ).join('');
+}
+buildMenu();
+
 d3.json("/countries-110m.json").then(data => {
-  topoData = data;
   allFeatures = topojson.feature(data, data.objects.countries).features;
 });
 
+function pickCont(c) {
+  selectedContinent = c;
+  document.querySelectorAll('.cont-btn').forEach(b => b.classList.toggle('selected', b.textContent.startsWith(c)));
+  $('startBtn').style.opacity='1'; $('startBtn').style.cursor='pointer';
+}
 function setMode(m) {
   gameMode = m;
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active',
-    (m==='silhouette'&&b.textContent.includes('Silhouette')) ||
-    (m==='continent'&&b.textContent.includes('continent')) ||
-    (m==='progressive'&&b.textContent.includes('Progressive'))
+    (m==='silhouette'&&b.textContent.includes('Silhouette'))||(m==='continent'&&b.textContent.includes('continent'))||(m==='progressive'&&b.textContent.includes('Progressive'))
   ));
 }
-
-function shuffle(a) { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a; }
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 
 function startGame() {
-  countries = shuffle([...GAME_COUNTRIES]);
-  round = 0; score = 0;
+  if (!selectedContinent) return;
+  const pool = CONTINENTS[selectedContinent];
+  // Pick up to 15 countries that exist in TopoJSON
+  const available = pool.filter(n => allFeatures.find(f => f.properties.name === n));
+  countries = shuffle([...available]).slice(0, Math.min(15, available.length));
+  round = 0; score = 0; phase = 1;
   show('game');
   showRound();
 }
@@ -126,12 +138,14 @@ function showRound() {
   $('feedback').innerHTML = '';
   $('nextBtn').style.display = 'none';
 
-  // Build 4 options
-  const others = shuffle(GAME_COUNTRIES.filter(c => c !== currentCountry)).slice(0,3);
+  // 4 options from same continent
+  const pool = CONTINENTS[selectedContinent].filter(c => c !== currentCountry);
+  const others = shuffle(pool).slice(0, 3);
   const opts = shuffle([currentCountry, ...others]);
-  $('options').innerHTML = opts.map(o =>
-    `<button class="opt" onclick="guess(this,'${o}')">${o}</button>`
-  ).join('');
+  $('options').innerHTML = opts.map(o => {
+    const dn = displayName(o);
+    return `<button class="opt" data-topo="${o.replace(/"/g,'&quot;')}" onclick="guess(this)">${dn}</button>`;
+  }).join('');
 
   if (gameMode === 'silhouette' || gameMode === 'progressive') {
     $('phaseLabel').textContent = gameMode === 'progressive' ? 'Phase 1: Silhouette — 2 pts' : 'What country is this?';
@@ -145,61 +159,55 @@ function showRound() {
 function drawSilhouette(name) {
   svg.selectAll("*").remove();
   const feat = allFeatures.find(f => f.properties.name === name);
-  if (!feat) { console.warn('Not found:', name); return; }
-
-  const projection = d3.geoMercator().fitSize([480, 330], feat);
-  const pathGen = d3.geoPath().projection(projection);
-
-  svg.append("path").datum(feat).attr("d", pathGen).attr("class","country-shape");
+  if (!feat) return;
+  const proj = d3.geoMercator().fitSize([W-20, H-20], feat);
+  const path = d3.geoPath().projection(proj);
+  svg.append("path").datum(feat).attr("d", path).attr("class","silhouette");
 }
 
 function drawContinent(name) {
   svg.selectAll("*").remove();
-  const cont = CONTINENT_MAP[name];
-  const members = CONTINENT_MEMBERS[cont] || [];
-  const contFeatures = allFeatures.filter(f => members.includes(f.properties.name));
+  const members = CONTINENTS[selectedContinent];
+  const contFeats = allFeatures.filter(f => members.includes(f.properties.name));
   const target = allFeatures.find(f => f.properties.name === name);
-  if (!contFeatures.length || !target) return;
+  if (!contFeats.length || !target) return;
 
-  // Fit to continent bounds
-  const collection = { type: "FeatureCollection", features: contFeatures };
-  const projection = d3.geoMercator().fitSize([480, 330], collection);
-  const pathGen = d3.geoPath().projection(projection);
+  const collection = {type:"FeatureCollection", features:contFeats};
+  const proj = d3.geoMercator().fitSize([W-20, H-20], collection);
+  const path = d3.geoPath().projection(proj);
 
-  // Draw continent countries in grey
-  svg.selectAll(".bg").data(contFeatures).enter().append("path")
-    .attr("d", pathGen).attr("class","continent-bg");
-
-  // Highlight target
-  svg.append("path").datum(target).attr("d", pathGen).attr("class","country-shape highlight");
+  svg.selectAll(".bg").data(contFeats).enter().append("path").attr("d",path).attr("class","continent-bg");
+  svg.append("path").datum(target).attr("d",path).attr("class","highlight");
 }
 
-function guess(btn, name) {
+function guess(btn) {
+  const picked = btn.dataset.topo;
   document.querySelectorAll('.opt').forEach(b => b.disabled = true);
-  const correct = name === currentCountry;
+  const correct = picked === currentCountry;
+  const dn = displayName(currentCountry);
 
   if (correct) {
     btn.classList.add('correct');
-    const pts = (gameMode === 'progressive' && phase === 1) ? 2 : 1;
+    const pts = (gameMode==='progressive' && phase===1) ? 2 : 1;
     score += pts;
-    $('feedback').innerHTML = `<div class="result correct">✅ Correct! +${pts}</div>`;
+    $('feedback').innerHTML = `<div class="result correct">✅ Correct! +${pts} — ${dn}</div>`;
     $('scoreBar').textContent = `Round ${round+1}/${countries.length} — Score: ${score}`;
     $('nextBtn').style.display = 'inline-block';
   } else {
     btn.classList.add('wrong');
-    document.querySelectorAll('.opt').forEach(b => { if(b.textContent===currentCountry) b.classList.add('correct'); });
+    document.querySelectorAll('.opt').forEach(b => { if(b.dataset.topo===currentCountry) b.classList.add('correct'); });
 
-    if (gameMode === 'progressive' && phase === 1) {
-      // Wrong on silhouette → show continent as second chance
+    if (gameMode==='progressive' && phase===1) {
       phase = 2;
-      $('feedback').innerHTML = `<div class="result wrong">❌ Wrong! Here's a hint — find it on the continent (1 pt)</div>`;
-      document.querySelectorAll('.opt').forEach(b => { b.disabled = false; b.className = 'opt'; });
+      $('feedback').innerHTML = `<div class="result wrong">❌ Wrong! Here's a hint — find it on the map (1 pt)</div>`;
+      document.querySelectorAll('.opt').forEach(b => { b.disabled=false; b.className='opt'; });
       $('phaseLabel').textContent = 'Phase 2: On the continent — 1 pt';
       drawContinent(currentCountry);
       return;
     }
-
-    $('feedback').innerHTML = `<div class="result wrong">❌ It was ${currentCountry}</div>`;
+    $('feedback').innerHTML = `<div class="result wrong">❌ It was ${dn}</div>`;
+    // Show it on the continent so they learn
+    if (gameMode==='silhouette') drawContinent(currentCountry);
     $('nextBtn').style.display = 'inline-block';
   }
 }
@@ -208,10 +216,14 @@ function nextRound() { round++; showRound(); }
 
 function endGame() {
   show('results');
-  const max = gameMode === 'progressive' ? countries.length * 2 : countries.length;
-  $('resultList').innerHTML = `<li>Score: ${score} / ${max}</li>`;
+  const max = gameMode==='progressive' ? countries.length*2 : countries.length;
+  $('resultList').innerHTML = `
+    <li>🎯 Score: ${score} / ${max} (${Math.round(score/max*100)}%)</li>
+    <li>📍 Continent: ${selectedContinent}</li>
+    <li>🗺️ Mode: ${gameMode}</li>
+  `;
 }
 
-function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); $(id).classList.add('active'); }
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')}
 </script>
 </body></html>
