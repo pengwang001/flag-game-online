@@ -42,6 +42,10 @@ h1{font-size:1.8em;margin-bottom:10px}
 
 <div id="menu" class="screen active">
   <p style="color:#888;margin:10px 0">Map Edition</p>
+  <div class="mode-toggle" style="margin-bottom:10px">
+    <button class="mode-btn active" onclick="setLang('en')">English</button>
+    <button class="mode-btn" onclick="setLang('zh')">中文</button>
+  </div>
   <h3>Pick a continent:</h3>
   <div class="cont-grid" id="contGrid"></div>
   <h3 style="margin-top:15px">Mode:</h3>
@@ -81,6 +85,25 @@ const DISPLAY_NAMES = {
 };
 function displayName(topoName) { return DISPLAY_NAMES[topoName] || topoName; }
 
+let lang = 'en';
+const ZH_NAMES = {
+// From flag game
+"Nigeria":"尼日利亚","Egypt":"埃及","South Africa":"南非","Kenya":"肯尼亚","Ethiopia":"埃塞俄比亚","Morocco":"摩洛哥","Ghana":"加纳","Tanzania":"坦桑尼亚",
+"Japan":"日本","India":"印度","China":"中国","South Korea":"韩国","Thailand":"泰国","Vietnam":"越南","Turkey":"土耳其","Singapore":"新加坡","Philippines":"菲律宾","Indonesia":"印度尼西亚","Malaysia":"马来西亚","Israel":"以色列","Nepal":"尼泊尔","Bangladesh":"孟加拉国","Mongolia":"蒙古","Sri Lanka":"斯里兰卡","Cambodia":"柬埔寨","United Arab Emirates":"阿联酋","Jordan":"约旦","Uzbekistan":"乌兹别克斯坦","Myanmar":"缅甸","Kazakhstan":"哈萨克斯坦","Lebanon":"黎巴嫩",
+"France":"法国","Germany":"德国","Italy":"意大利","Spain":"西班牙","United Kingdom":"英国","Netherlands":"荷兰","Sweden":"瑞典","Greece":"希腊","Portugal":"葡萄牙","Poland":"波兰","Norway":"挪威","Switzerland":"瑞士","Ireland":"爱尔兰","Austria":"奥地利","Croatia":"克罗地亚","Finland":"芬兰","Denmark":"丹麦","Czech Republic":"捷克","Hungary":"匈牙利","Romania":"罗马尼亚","Belgium":"比利时","Iceland":"冰岛",
+"United States":"美国","Canada":"加拿大","Mexico":"墨西哥","Cuba":"古巴","Jamaica":"牙买加","Costa Rica":"哥斯达黎加","Panama":"巴拿马","Haiti":"海地","Dominican Republic":"多米尼加","Guatemala":"危地马拉","Trinidad and Tobago":"特立尼达和多巴哥","Bahamas":"巴哈马",
+"Brazil":"巴西","Argentina":"阿根廷","Colombia":"哥伦比亚","Peru":"秘鲁","Chile":"智利","Ecuador":"厄瓜多尔","Uruguay":"乌拉圭","Venezuela":"委内瑞拉","Bolivia":"玻利维亚","Paraguay":"巴拉圭","Guyana":"圭亚那","Suriname":"苏里南",
+// Additional map countries
+"Albania":"阿尔巴尼亚","Belarus":"白俄罗斯","Bosnia":"波黑","Bulgaria":"保加利亚","Estonia":"爱沙尼亚","Kosovo":"科索沃","Latvia":"拉脱维亚","Lithuania":"立陶宛","Luxembourg":"卢森堡","North Macedonia":"北马其顿","Moldova":"摩尔多瓦","Montenegro":"黑山","Russia":"俄罗斯","Serbia":"塞尔维亚","Slovakia":"斯洛伐克","Slovenia":"斯洛文尼亚","Ukraine":"乌克兰",
+"Afghanistan":"阿富汗","Armenia":"亚美尼亚","Azerbaijan":"阿塞拜疆","Bhutan":"不丹","Brunei":"文莱","Cyprus":"塞浦路斯","Georgia":"格鲁吉亚","Iran":"伊朗","Iraq":"伊拉克","Kuwait":"科威特","Kyrgyzstan":"吉尔吉斯斯坦","Laos":"老挝","North Korea":"朝鲜","Oman":"阿曼","Pakistan":"巴基斯坦","Qatar":"卡塔尔","Saudi Arabia":"沙特阿拉伯","Syria":"叙利亚","Taiwan":"台湾","Tajikistan":"塔吉克斯坦","Timor-Leste":"东帝汶","Turkmenistan":"土库曼斯坦","Yemen":"也门",
+"Belize":"伯利兹","El Salvador":"萨尔瓦多","Honduras":"洪都拉斯","Nicaragua":"尼加拉瓜","Puerto Rico":"波多黎各"
+};
+function localName(topoName) {
+  if (lang==='en') return displayName(topoName);
+  const dn = displayName(topoName);
+  return ZH_NAMES[dn] || dn;
+}
+
 // Continent definitions using TopoJSON names
 const CONTINENTS = {
   "Europe": ["Albania","Austria","Belarus","Belgium","Bosnia and Herz.","Bulgaria","Croatia","Czechia","Denmark","Estonia","Finland","France","Germany","Greece","Hungary","Iceland","Ireland","Italy","Kosovo","Latvia","Lithuania","Luxembourg","Macedonia","Moldova","Montenegro","Netherlands","Norway","Poland","Portugal","Romania","Russia","Serbia","Slovakia","Slovenia","Spain","Sweden","Switzerland","Ukraine","United Kingdom"],
@@ -90,6 +113,13 @@ const CONTINENTS = {
 };
 
 let allFeatures, gameMode='silhouette', selectedContinent=null;
+
+function setLang(l) {
+  lang = l;
+  document.querySelectorAll('.mode-toggle')[0].querySelectorAll('.mode-btn').forEach(b =>
+    b.classList.toggle('active', (l==='en'&&b.textContent==='English')||(l==='zh'&&b.textContent==='中文'))
+  );
+}
 let countries=[], round=0, score=0, currentCountry=null, phase=1;
 const svg = d3.select("#mapSvg");
 const W=550, H=380;
@@ -144,15 +174,17 @@ function showRound() {
   const others = shuffle(pool).slice(0, 3);
   const opts = shuffle([currentCountry, ...others]);
   $('options').innerHTML = opts.map(o => {
-    const dn = displayName(o);
+    const dn = localName(o);
     return `<button class="opt" data-topo="${o.replace(/"/g,'&quot;')}" onclick="guess(this)">${dn}</button>`;
   }).join('');
 
   if (gameMode === 'silhouette' || gameMode === 'progressive') {
-    $('phaseLabel').textContent = gameMode === 'progressive' ? 'Phase 1: Silhouette — 2 pts' : 'What country is this?';
+    $('phaseLabel').textContent = gameMode === 'progressive'
+      ? (lang==='zh'?'第一阶段：轮廓 — 2分':'Phase 1: Silhouette — 2 pts')
+      : (lang==='zh'?'这是哪个国家？':'What country is this?');
     drawSilhouette(currentCountry);
   } else {
-    $('phaseLabel').textContent = 'Find the highlighted country:';
+    $('phaseLabel').textContent = lang==='zh'?'找到高亮的国家：':'Find the highlighted country:';
     drawContinent(currentCountry);
   }
 }
@@ -185,7 +217,7 @@ function guess(btn) {
   const picked = btn.dataset.topo;
   document.querySelectorAll('.opt').forEach(b => b.disabled = true);
   const correct = picked === currentCountry;
-  const dn = displayName(currentCountry);
+  const dn = localName(currentCountry);
 
   if (correct) {
     btn.classList.add('correct');
@@ -200,9 +232,9 @@ function guess(btn) {
 
     if (gameMode==='progressive' && phase===1) {
       phase = 2;
-      $('feedback').innerHTML = `<div class="result wrong">❌ Wrong! Here's a hint — find it on the map (1 pt)</div>`;
+      $('feedback').innerHTML = `<div class="result wrong">${lang==='zh'?'❌ 错了！看看它在地图上的位置 (1分)':'❌ Wrong! Here\'s a hint — find it on the map (1 pt)'}</div>`;
       document.querySelectorAll('.opt').forEach(b => { b.disabled=false; b.className='opt'; });
-      $('phaseLabel').textContent = 'Phase 2: On the continent — 1 pt';
+      $('phaseLabel').textContent = lang==='zh'?'第二阶段：在大洲上 — 1分':'Phase 2: On the continent — 1 pt';
       drawContinent(currentCountry);
       return;
     }
