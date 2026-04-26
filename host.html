@@ -54,19 +54,33 @@ h1{font-size:2em;margin-bottom:10px}
   <img id="qrCode" style="margin:10px auto;display:block;border-radius:12px" width="200" height="200">
   <p class="status">Waiting for players...</p>
   <div id="lobbyPlayers" class="players"></div>
-  <h3 style="margin-top:20px">Pick a continent:</h3>
-  <div id="continents" class="continents"></div>
-  <label style="margin-top:10px;display:block"><input type="checkbox" id="showFlags" checked> Show flags</label>
-  <div style="margin-top:10px">
-    <span style="color:#888">Timer:</span>
-    <div class="lang-toggle" id="timerSelect">
-      <button class="lang-btn active" onclick="pickTimer(0)">No timer</button>
-      <button class="lang-btn" onclick="pickTimer(15)">15s</button>
-      <button class="lang-btn" onclick="pickTimer(20)">20s</button>
-      <button class="lang-btn" onclick="pickTimer(30)">30s</button>
-    </div>
+
+  <h3 style="margin-top:20px">Game Mode:</h3>
+  <div class="lang-toggle" style="margin-bottom:15px">
+    <button class="lang-btn active" onclick="setGameMode('trivia')">🏳️ Flag Trivia</button>
+    <button class="lang-btn" onclick="setGameMode('map')">🗺️ Map Quiz</button>
   </div>
-  <button id="startBtn" class="start-btn" disabled>Start Game</button>
+
+  <div id="triviaOptions">
+    <h3>Pick a continent:</h3>
+    <div id="continents" class="continents"></div>
+    <label style="margin-top:10px;display:block"><input type="checkbox" id="showFlags" checked> Show flags</label>
+    <div style="margin-top:10px">
+      <span style="color:#888">Timer:</span>
+      <div class="lang-toggle" id="timerSelect">
+        <button class="lang-btn active" onclick="pickTimer(0)">No timer</button>
+        <button class="lang-btn" onclick="pickTimer(15)">15s</button>
+        <button class="lang-btn" onclick="pickTimer(20)">20s</button>
+        <button class="lang-btn" onclick="pickTimer(30)">30s</button>
+      </div>
+    </div>
+    <button id="startBtn" class="start-btn" disabled>Start Game</button>
+  </div>
+
+  <div id="mapOptions" style="display:none;margin-top:10px">
+    <p style="color:#888;margin:10px 0">Identify countries by their shape on the map!</p>
+    <button class="start-btn" onclick="window.location.href='/map'">Open Map Quiz →</button>
+  </div>
 </div>
 
 <div id="game" class="screen">
@@ -94,6 +108,14 @@ const proto = location.protocol === 'https:' ? 'wss' : 'ws';
 let ws;
 let selectedContinent = null;
 let selectedTimer = 0;
+
+function setGameMode(mode) {
+  $('triviaOptions').style.display = mode==='trivia' ? 'block' : 'none';
+  $('mapOptions').style.display = mode==='map' ? 'block' : 'none';
+  document.querySelectorAll('.lang-toggle')[0].querySelectorAll('.lang-btn').forEach(b =>
+    b.classList.toggle('active', (mode==='trivia'&&b.textContent.includes('Flag'))||(mode==='map'&&b.textContent.includes('Map')))
+  );
+}
 
 function pickTimer(s) {
   selectedTimer = s;
