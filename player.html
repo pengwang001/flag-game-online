@@ -143,7 +143,7 @@ function handle(m) {
     $('flag').textContent = m.flag;
     if (m.img) { $('landmark').src = m.img; $('landmark').style.display = 'block'; }
     else { $('landmark').style.display = 'none'; }
-    $('clueList').innerHTML = `<div class="clue">💡 ${m.clues[0]}</div>`;
+    $('clueList').innerHTML = `<div class="clue">💡 ${lang==='zh' && m.zhClues?.[0] ? m.zhClues[0] : m.clues[0]}</div>`;
     $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
     $('feedback').innerHTML = '';
     $('options').innerHTML = m.options.map(o =>
@@ -153,7 +153,7 @@ function handle(m) {
 
   if (m.type === 'clue') {
     sfxClue();
-    $('clueList').innerHTML += `<div class="clue">💡 ${m.clue}</div>`;
+    $('clueList').innerHTML += `<div class="clue">💡 ${lang==='zh' && m.zhClue ? m.zhClue : m.clue}</div>`;
     $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
   }
 

@@ -11,6 +11,9 @@ let DATA;
 const raw = fs.readFileSync(path.join(__dirname, 'data.js'), 'utf8');
 eval(raw.replace('const DATA', 'DATA'));
 
+let ZH_CLUES = {};
+eval(fs.readFileSync(path.join(__dirname, 'zh-clues.js'), 'utf8').replace('const ZH_CLUES', 'ZH_CLUES'));
+
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
 // Game state
@@ -51,8 +54,14 @@ function sendQuestion() {
   const q = countries[questionIdx];
   const pool = DATA[continent].filter(c => c.name !== q.name);
   const opts = shuffle([q, ...shuffle(pool).slice(0, 3)]);
-  const clues = shuffle([...q.clues]);
-  currentQuestion = { ...q, clues, options: opts.map(o => o.name) };
+  const origClues = q.clues;
+  const zhArr = ZH_CLUES[q.name] || [];
+  // Shuffle indices so both languages stay aligned
+  const indices = origClues.map((_,i) => i);
+  shuffle(indices);
+  const clues = indices.map(i => origClues[i]);
+  const zhClues = indices.map(i => zhArr[i] || origClues[i]);
+  currentQuestion = { ...q, clues, zhClues, options: opts.map(o => o.name) };
   answered = new Set();
   clueIdx = 0;
 
@@ -60,6 +69,7 @@ function sendQuestion() {
     type: 'question', round: questionIdx + 1, total: countries.length,
     flag: showFlags ? q.flag : '❓', img: q.img || null,
     clues: [clues[0]], clueNum: 1, maxClues: Math.min(MAX_CLUES, clues.length),
+    zhClues: [zhClues[0]],
     options: currentQuestion.options,
     points: MAX_CLUES,
   };
@@ -73,7 +83,7 @@ function sendQuestion() {
     if (clueIdx >= Math.min(MAX_CLUES, clues.length) || answered.size >= players.length) {
       clearInterval(clueTimer); return;
     }
-    const reveal = { type: 'clue', clue: clues[clueIdx], clueNum: clueIdx + 1, points: MAX_CLUES - clueIdx };
+    const reveal = { type: 'clue', clue: clues[clueIdx], zhClue: zhClues[clueIdx], clueNum: clueIdx + 1, points: MAX_CLUES - clueIdx };
     if (hostWs?.readyState === 1) hostWs.send(JSON.stringify(reveal));
     players.forEach(p => { if (p.ws?.readyState === 1) p.ws.send(JSON.stringify(reveal)); });
     clueIdx++;
@@ -95,6 +105,7 @@ const server = http.createServer((req, res) => {
   if (req.url === '/' || req.url === '/host') file = 'host.html';
   else if (req.url === '/play') file = 'player.html';
   else if (req.url === '/data.js') file = 'data.js';
+  else if (req.url === '/zh-clues.js') file = 'zh-clues.js';
   else if (req.url === '/qr') {
     const playUrl = `${req.headers['x-forwarded-proto']||'http'}://${req.headers.host}/play`;
     QRCode.toDataURL(playUrl, {width:300,margin:1}, (err,url) => {
