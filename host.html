@@ -270,6 +270,28 @@ function sfxGameOver(){
   // Drumroll effect
   setTimeout(()=>{for(let i=0;i<6;i++)setTimeout(()=>playTone(200+i*30,.05,'square',.1),i*50)},100);
 }
+let lobbyMusicTimer=null;
+function sfxLobbyMusic(){
+  if(lobbyMusicTimer)return;
+  const bpm=200,b=60000/bpm,v=0.18;
+  // Jeopardy think music melody (simplified)
+  const notes=[
+    [392,b],[349,b/2],[392,b],[523,b],[440,b],[392,b],[349,b],
+    [392,b],[349,b/2],[392,b],[440,b*1.5],[0,b/2],
+    [392,b],[349,b/2],[392,b],[523,b],[440,b],[392,b],[349,b],
+    [262,b],[294,b],[330,b],[349,b],[330,b],[294,b],[262,b*2],
+  ];
+  let t=0;
+  const ids=notes.map(([f,d])=>{
+    const id=f?setTimeout(()=>playTone(f,d/1000*0.9,'sine',v),t):null;
+    t+=d;return id;
+  });
+  lobbyMusicTimer=setTimeout(()=>{lobbyMusicTimer=null;sfxLobbyMusic();},t);
+  lobbyMusicTimer._ids=ids;
+}
+function stopLobbyMusic(){
+  if(lobbyMusicTimer){clearTimeout(lobbyMusicTimer);lobbyMusicTimer=null;}
+}
 
 function spawnConfetti(){
   const container=document.createElement('div');
@@ -302,6 +324,8 @@ function handleMsg(e) {
 
   if (m.type === 'lobby') {
     show('lobby');
+    if(audioCtx.state==='suspended')audioCtx.resume();
+    sfxLobbyMusic();
     $('lobbyPlayers').innerHTML = m.players.map(p =>
       `<div class="player-badge" style="background:${p.color}">${p.name}</div>`
     ).join('') || '<p style="color:#666">No players yet</p>';
@@ -329,6 +353,7 @@ function handleMsg(e) {
 
   if (m.type === 'question') {
     show('game');
+    stopLobbyMusic();
     if(audioCtx.state==='suspended')audioCtx.resume();
     sfxNewRound();
     $('roundInfo').textContent = `Round ${m.round}/${m.total}`;
