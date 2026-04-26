@@ -59,7 +59,7 @@ function lobbyState() {
   const continents = Object.entries(DATA).map(([name, arr]) => ({ name, count: arr.length }));
   const mapContinents = Object.entries(MAP_CONTINENTS).map(([name, arr]) => ({ name, count: arr.length }));
   const capitalContinents = Object.entries(CAPITALS).map(([name, arr]) => ({ name, count: arr.length }));
-  broadcast({ type: 'lobby', players: players.map(p => ({ id: p.id, name: p.name, color: p.color })), showFlags, continents, mapContinents, capitalContinents, usStatesCount: US_STATES.length });
+  broadcast({ type: 'lobby', players: players.map(p => ({ id: p.id, name: p.name, color: p.color })), showFlags, continents, mapContinents, capitalContinents, usStatesCount: US_STATES.length, caProvincesCount: CA_PROVINCES.length });
 }
 
 let soloScore = 0;
@@ -75,6 +75,8 @@ const MAP_CONTINENTS = {
 const MAP_DISPLAY={"United States of America":"United States","Dominican Rep.":"Dominican Republic","Czechia":"Czech Republic","Bosnia and Herz.":"Bosnia","Macedonia":"North Macedonia"};
 
 const US_STATES=["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"];
+
+const CA_PROVINCES=["Alberta","British Columbia","Manitoba","New Brunswick","Newfoundland and Labrador","Northwest Territories","Nova Scotia","Nunavut","Ontario","Prince Edward Island","Quebec","Saskatchewan","Yukon Territory"];
 
 // Local game data
 const LOCAL_CITIES = [
@@ -160,6 +162,15 @@ function sendQuestion() {
       stateName: q.name,
       options: currentQuestion.options, points: timerSec ? MAX_CLUES : 1, timer: timerSec,
     };
+  } else if (gameType === 'camap') {
+    const pool = CA_PROVINCES.filter(n => n !== q.name);
+    const opts = shuffle([q.name, ...shuffle(pool).slice(0, 3)]);
+    currentQuestion = { name: q.name, options: opts };
+    base = {
+      type: 'question', gameType: 'camap', round: questionIdx + 1, total: countries.length,
+      stateName: q.name,
+      options: currentQuestion.options, points: timerSec ? MAX_CLUES : 1, timer: timerSec,
+    };
   }
 
   roundStartTime = Date.now();
@@ -167,7 +178,7 @@ function sendQuestion() {
   players.forEach(p => sendTo(p.ws, base));
 
   // Progressive clue reveal (trivia + local only)
-  if (gameType !== 'map' && gameType !== 'capital' && gameType !== 'flagquiz' && gameType !== 'usmap') {
+  if (gameType !== 'map' && gameType !== 'capital' && gameType !== 'flagquiz' && gameType !== 'usmap' && gameType !== 'camap') {
     const clues = currentQuestion.clues;
     const zhClues = currentQuestion.zhClues;
     clueIdx = 1;
@@ -233,6 +244,7 @@ const server = http.createServer((req, res) => {
   else if (req.url === '/zh-clues.js') file = 'zh-clues.js';
   else if (req.url === '/countries-110m.json') { file = 'countries-110m.json'; }
   else if (req.url === '/states-10m.json') { file = 'states-10m.json'; }
+  else if (req.url === '/canada.json') { file = 'canada.json'; }
   else if (req.url === '/gamebackground.png') { file = 'gamebackground.png'; }
   else if (req.url === '/map') file = 'map.html';
   else if (req.url === '/local') file = 'local.html';
@@ -328,6 +340,9 @@ wss.on('connection', (ws) => {
       } else if (gameType === 'usmap') {
         roundsPerGame = Math.min(msg.rounds || 20, US_STATES.length);
         countries = shuffle([...US_STATES]).slice(0, roundsPerGame).map(n => ({ name: n }));
+      } else if (gameType === 'camap') {
+        roundsPerGame = Math.min(msg.rounds || 13, CA_PROVINCES.length);
+        countries = shuffle([...CA_PROVINCES]).slice(0, roundsPerGame).map(n => ({ name: n }));
       }
       questionIdx = 0;
       players.forEach(p => p.score = 0);
@@ -341,7 +356,8 @@ wss.on('connection', (ws) => {
       clearInterval(clueTimer);
       clearInterval(roundTimer);
       const correct = msg.answer === currentQuestion.name;
-      const pts = correct ? (gameType === 'map' || gameType === 'capital' || gameType === 'flagquiz' || gameType === 'usmap' ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1)) : 0;
+      const noClueTypes = new Set(['map','capital','flagquiz','usmap','camap']);
+      const pts = correct ? (noClueTypes.has(gameType) ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1)) : 0;
       soloScore += pts;
       sendTo(hostWs, { type: 'solo_result', correct, correctAnswer: currentQuestion.name, pts, totalScore: soloScore });
       autoAdvanceTimer = setTimeout(() => { questionIdx++; sendQuestion(); }, 3000);
@@ -351,7 +367,7 @@ wss.on('connection', (ws) => {
       answered.add(playerId);
       const correct = msg.answer === currentQuestion.name;
       const p = players.find(x => x.id === playerId);
-      if (correct && p) p.score += gameType === 'map' || gameType === 'capital' || gameType === 'flagquiz' || gameType === 'usmap' ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1);
+      if (correct && p) { const nc=new Set(['map','capital','flagquiz','usmap','camap']); p.score += nc.has(gameType) ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1); }
 
       sendTo(hostWs, {
         type: 'player_answered', playerId, name: p?.name, answer: msg.answer, correct,

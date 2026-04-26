@@ -39,6 +39,7 @@ h1{font-size:2em;margin-bottom:10px;display:none}
 .gm-capital{--gm-color:#f59e0b;--gm-glow:rgba(245,158,11,.4)}
 .gm-flag{--gm-color:#a78bfa;--gm-glow:rgba(167,139,250,.4)}
 .gm-us{--gm-color:#ef4444;--gm-glow:rgba(239,68,68,.4)}
+.gm-ca{--gm-color:#ef4444;--gm-glow:rgba(239,68,68,.4)}
 .gm-local{--gm-color:#f472b6;--gm-glow:rgba(244,114,182,.4)}
 /* Options bar & toggle buttons */
 .options-bar{margin:0 auto 12px;max-width:600px}
@@ -148,6 +149,10 @@ h1{font-size:2em;margin-bottom:10px;display:none}
       <div class="gm-icon gm-us"><span>🇺🇸</span></div>
       <div class="gm-label"><strong>US</strong><br>STATES</div>
     </button>
+    <button class="gm-btn" data-mode="camap" onclick="setGameMode('camap')">
+      <div class="gm-icon gm-ca"><span>🇨🇦</span></div>
+      <div class="gm-label"><strong>CANADA</strong><br>PROVINCES</div>
+    </button>
     <button class="gm-btn" data-mode="local" onclick="setGameMode('local')">
       <div class="gm-icon gm-local"><span>📍</span></div>
       <div class="gm-label"><strong>LOCAL</strong><br>EXPLORER</div>
@@ -247,6 +252,20 @@ h1{font-size:2em;margin-bottom:10px;display:none}
     <button id="usmapStartBtn" class="start-btn" onclick="startUsmap()">Start US States</button>
   </div>
 
+  <div id="camapOptions" class="mode-panel" style="display:none">
+    <p class="panel-desc">Identify Canadian provinces and territories by their shape!</p>
+    <div class="opt-group" style="margin-top:10px">
+      <span class="opt-label">Timer</span>
+      <div class="toggle-row" id="camapTimerSelect">
+        <button class="tog-btn active" onclick="pickCamapTimer(0)">No timer</button>
+        <button class="tog-btn" onclick="pickCamapTimer(15)">15s</button>
+        <button class="tog-btn" onclick="pickCamapTimer(20)">20s</button>
+        <button class="tog-btn" onclick="pickCamapTimer(30)">30s</button>
+      </div>
+    </div>
+    <button id="camapStartBtn" class="start-btn" onclick="startCamap()">Start Canada Provinces</button>
+  </div>
+
   <div id="localOptions" class="mode-panel" style="display:none">
     <p class="panel-desc">How well do you know Issaquah, Bellevue, Sammamish & Seattle?</p>
     <button class="start-btn" onclick="startLocal()">Start Local Explorer</button>
@@ -317,6 +336,23 @@ function drawUsMapOnHost(stateName) {
   else svg.select('path').attr('fill','#f59e0b');
 }
 
+let caFeatures = null;
+fetch('/canada.json').then(r=>r.json()).then(data=>{
+  caFeatures = data.features;
+}).catch(()=>{});
+
+function drawCaMapOnHost(provName) {
+  const svg = d3.select('#mapSvg');
+  svg.selectAll('*').remove();
+  if (!caFeatures) return;
+  const target = caFeatures.find(f => f.properties.name === provName);
+  if (!target) return;
+  const proj = d3.geoMercator().fitSize([480,320],{type:'FeatureCollection',features:caFeatures});
+  const path = d3.geoPath().projection(proj);
+  svg.selectAll('.bg').data(caFeatures).enter().append('path').attr('d',path).attr('fill','#1e293b').attr('stroke','#334155').attr('stroke-width',.3);
+  svg.append('path').datum(target).attr('d',path).attr('fill','#f59e0b').attr('stroke','#1a1a2e').attr('stroke-width',.5);
+}
+
 function pickMapContinent(c) {
   selectedMapContinent = c;
   document.querySelectorAll('#mapContinents .cont-btn').forEach(b => b.classList.toggle('selected', b.textContent.startsWith(c)));
@@ -363,6 +399,13 @@ function pickUsmapTimer(s) {
 function startUsmap() {
   ws.send(JSON.stringify({ type:'start', gameType:'usmap', timer: selectedTimer, rounds: selectedRounds || 999 }));
 }
+function pickCamapTimer(s) {
+  selectedTimer = s;
+  document.querySelectorAll('#camapTimerSelect .tog-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
+}
+function startCamap() {
+  ws.send(JSON.stringify({ type:'start', gameType:'camap', timer: selectedTimer, rounds: selectedRounds || 999 }));
+}
 function startLocal() {
   ws.send(JSON.stringify({ type:'start', gameType:'local', timer: selectedTimer, rounds: selectedRounds || 999 }));
 }
@@ -399,6 +442,7 @@ function setGameMode(mode) {
   $('capitalOptions').style.display = mode==='capital' ? 'block' : 'none';
   $('flagquizOptions').style.display = mode==='flagquiz' ? 'block' : 'none';
   $('usmapOptions').style.display = mode==='usmap' ? 'block' : 'none';
+  $('camapOptions').style.display = mode==='camap' ? 'block' : 'none';
   $('localOptions').style.display = mode==='local' ? 'block' : 'none';
   document.querySelectorAll('.gm-btn').forEach(b => b.classList.toggle('active', b.dataset.mode===mode));
 }
@@ -594,6 +638,10 @@ function handleMsg(e) {
       $('mapSvg').style.display='block';
       $('pointsHint').textContent = m.timer ? `⚡ ${m.points} pts` : '⚡ 1 pt';
       drawUsMapOnHost(m.stateName);
+    } else if (m.gameType === 'camap') {
+      $('mapSvg').style.display='block';
+      $('pointsHint').textContent = m.timer ? `⚡ ${m.points} pts` : '⚡ 1 pt';
+      drawCaMapOnHost(m.stateName);
     } else {
       $('flagArea').style.display='block';
       $('flagArea').textContent = m.flag;
