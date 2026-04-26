@@ -32,6 +32,8 @@ let roundsPerGame = 8;
 let clueIdx = 0;
 let clueTimer = null;
 let autoAdvanceTimer = null;
+let roundTimer = null;
+let timerSec = 0;
 const MAX_CLUES = 5;
 const CLUE_INTERVAL = 5000; // 5s between clues
 
@@ -51,6 +53,7 @@ function sendQuestion() {
   if (questionIdx >= countries.length) { endGame(); return; }
   clearInterval(clueTimer);
   clearTimeout(autoAdvanceTimer);
+  clearInterval(roundTimer);
   const q = countries[questionIdx];
   const pool = DATA[continent].filter(c => c.name !== q.name);
   const opts = shuffle([q, ...shuffle(pool).slice(0, 3)]);
@@ -72,6 +75,7 @@ function sendQuestion() {
     zhClues: [zhClues[0]],
     options: currentQuestion.options,
     points: MAX_CLUES,
+    timer: timerSec,
   };
 
   sendTo(hostWs, { ...base, players: players.map(p => ({ id: p.id, name: p.name, score: p.score, color: p.color })) });
@@ -88,6 +92,24 @@ function sendQuestion() {
     players.forEach(p => { if (p.ws?.readyState === 1) p.ws.send(JSON.stringify(reveal)); });
     clueIdx++;
   }, CLUE_INTERVAL);
+
+  // Round timer countdown
+  if (timerSec > 0) {
+    let timeLeft = timerSec;
+    roundTimer = setInterval(() => {
+      timeLeft -= 1;
+      if (answered.size >= players.length) { clearInterval(roundTimer); return; }
+      broadcast({ type: 'timer_tick', left: timeLeft, total: timerSec });
+      if (timeLeft <= 0) {
+        clearInterval(roundTimer);
+        clearInterval(clueTimer);
+        // Timeout: treat unanswered players as wrong, then auto-advance
+        broadcast({ type: 'timeout', correctAnswer: currentQuestion.name,
+          players: players.map(p => ({ id: p.id, name: p.name, score: p.score, color: p.color })) });
+        autoAdvanceTimer = setTimeout(() => { questionIdx++; sendQuestion(); }, 3000);
+      }
+    }, 1000);
+  }
 }
 
 function endGame() {
@@ -144,6 +166,7 @@ wss.on('connection', (ws) => {
       if (!players.length) { sendTo(ws, { type: 'error', msg: 'Need at least 1 player' }); return; }
       continent = msg.continent;
       showFlags = msg.showFlags !== false;
+      timerSec = msg.timer || 0;
       roundsPerGame = Math.min(msg.rounds || 8, DATA[continent].length);
       countries = shuffle([...DATA[continent]]).slice(0, roundsPerGame);
       questionIdx = 0;
@@ -168,6 +191,7 @@ wss.on('connection', (ws) => {
 
       if (answered.size >= players.length) {
         clearInterval(clueTimer);
+        clearInterval(roundTimer);
         sendTo(hostWs, {
           type: 'all_answered', correctAnswer: currentQuestion.name,
           players: players.map(p => ({ id: p.id, name: p.name, score: p.score, color: p.color })),
@@ -178,7 +202,7 @@ wss.on('connection', (ws) => {
       }
     }
 
-    if (msg.type === 'next' && isHost && state === 'playing') { clearTimeout(autoAdvanceTimer); questionIdx++; sendQuestion(); }
+    if (msg.type === 'next' && isHost && state === 'playing') { clearTimeout(autoAdvanceTimer); clearInterval(roundTimer); questionIdx++; sendQuestion(); }
     if (msg.type === 'back_to_lobby' && isHost) { state = 'lobby'; players.forEach(p => p.score = 0); lobbyState(); }
   });
 

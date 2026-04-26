@@ -33,6 +33,15 @@ h1{font-size:2em;margin-bottom:10px}
 .next-btn{padding:10px 30px;border:none;border-radius:8px;background:#3b82f6;color:#fff;font-size:1.1em;cursor:pointer;margin-top:15px}
 .result-list{list-style:none;max-width:400px;margin:15px auto}
 .result-list li{padding:12px;margin:6px 0;border-radius:10px;font-size:1.2em;display:flex;justify-content:space-between}
+.lang-toggle{display:flex;gap:8px;justify-content:center;margin:5px 0;flex-wrap:wrap}
+.lang-btn{padding:8px 16px;border:2px solid #333;border-radius:10px;background:#16213e;color:#eee;font-size:1em;cursor:pointer}
+.lang-btn.active{border-color:#3b82f6;background:#1a3a5c}
+.timer-wrap{max-width:500px;margin:8px auto;display:none}
+.timer-bar-bg{height:8px;background:#333;border-radius:4px;overflow:hidden}
+.timer-bar-fill{height:100%;background:#3b82f6;border-radius:4px;transition:width .15s linear}
+.timer-bar-fill.warning{background:#f59e0b}
+.timer-bar-fill.danger{background:#ef4444}
+.timer-text{font-size:1.1em;font-weight:bold;margin-top:2px}
 .status{font-size:.9em;color:#888;margin:5px 0}
 .answered-bar{height:6px;background:#333;border-radius:3px;max-width:300px;margin:8px auto}
 .answered-fill{height:100%;background:#3b82f6;border-radius:3px;transition:width .3s}
@@ -48,11 +57,21 @@ h1{font-size:2em;margin-bottom:10px}
   <h3 style="margin-top:20px">Pick a continent:</h3>
   <div id="continents" class="continents"></div>
   <label style="margin-top:10px;display:block"><input type="checkbox" id="showFlags" checked> Show flags</label>
+  <div style="margin-top:10px">
+    <span style="color:#888">Timer:</span>
+    <div class="lang-toggle" id="timerSelect">
+      <button class="lang-btn active" onclick="pickTimer(0)">No timer</button>
+      <button class="lang-btn" onclick="pickTimer(15)">15s</button>
+      <button class="lang-btn" onclick="pickTimer(20)">20s</button>
+      <button class="lang-btn" onclick="pickTimer(30)">30s</button>
+    </div>
+  </div>
   <button id="startBtn" class="start-btn" disabled>Start Game</button>
 </div>
 
 <div id="game" class="screen">
   <div class="status" id="roundInfo"></div>
+  <div class="timer-wrap" id="timerWrap"><div class="timer-bar-bg"><div class="timer-bar-fill" id="timerBar" style="width:100%"></div></div><div class="timer-text" id="timerText"></div></div>
   <div id="scoreboard" class="scoreboard"></div>
   <div class="points-hint" id="pointsHint"></div>
   <div id="flagArea" class="flag"></div>
@@ -74,6 +93,12 @@ h1{font-size:2em;margin-bottom:10px}
 const proto = location.protocol === 'https:' ? 'wss' : 'ws';
 let ws;
 let selectedContinent = null;
+let selectedTimer = 0;
+
+function pickTimer(s) {
+  selectedTimer = s;
+  document.querySelectorAll('#timerSelect .lang-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
+}
 
 function connectWs() {
   ws = new WebSocket(`${proto}://${location.host}`);
@@ -125,6 +150,8 @@ function handleMsg(e) {
     if(audioCtx.state==='suspended')audioCtx.resume();
     sfxNewRound();
     $('roundInfo').textContent = `Round ${m.round}/${m.total}`;
+    if (m.timer) { $('timerWrap').style.display='block'; $('timerBar').style.width='100%'; $('timerBar').className='timer-bar-fill'; $('timerText').textContent=m.timer+'s'; }
+    else { $('timerWrap').style.display='none'; }
     $('flagArea').textContent = m.flag;
     if (m.img) { $('landmark').src = m.img; $('landmark').style.display = 'block'; }
     else { $('landmark').style.display = 'none'; }
@@ -138,6 +165,14 @@ function handleMsg(e) {
     $('nextBtn').style.display = 'none';
     $('answeredFill').style.width = '0%';
     $('answerStatus').textContent = 'Waiting for answers...';
+  }
+
+  if (m.type === 'timer_tick') {
+    const pct = (m.left / m.total) * 100;
+    $('timerBar').style.width = pct + '%';
+    $('timerBar').className = 'timer-bar-fill' + (pct<=20?' danger':pct<=40?' warning':'');
+    $('timerText').textContent = Math.ceil(m.left) + 's';
+    if(m.left<=3 && m.left>0) playTone(600,.08,'square',0.2);
   }
 
   if (m.type === 'clue') {
@@ -155,8 +190,20 @@ function handleMsg(e) {
     ).join('');
   }
 
-  if (m.type === 'all_answered') {
-    sfxAllAnswered();
+  if (m.type === 'timeout') {
+    playTone(300,.15,'sawtooth',0.25);setTimeout(()=>playTone(200,.15,'sawtooth',0.25),150);setTimeout(()=>playTone(100,.4,'sawtooth',0.25),300);
+    $('timerWrap').style.display='none';
+    $('answerStatus').textContent = `⏰ Time's up! Answer: ${m.correctAnswer}`;
+    $('optionsArea').style.display = 'grid';
+    document.querySelectorAll('.opt').forEach(el => {
+      if (el.textContent === m.correctAnswer) el.classList.add('correct'); else el.classList.add('wrong');
+    });
+    $('scoreboard').innerHTML = m.players.map(p => `<div class="score-card" style="background:${p.color}">${p.name}: ${p.score}</div>`).join('');
+    let sec = 3; $('nextBtn').style.display = 'inline-block'; $('nextBtn').textContent = `Next (${sec}s)`;
+    const cd = setInterval(() => { sec--; if(sec>0) $('nextBtn').textContent=`Next (${sec}s)`; else clearInterval(cd); }, 1000);
+  }
+
+  if (m.type === 'all_answered') {    sfxAllAnswered();
     $('answerStatus').textContent = `Answer: ${m.correctAnswer}`;
     $('optionsArea').style.display = 'grid';
     document.querySelectorAll('.opt').forEach(el => {
@@ -187,7 +234,7 @@ function show(id) { document.querySelectorAll('.screen').forEach(s => s.classLis
 function pickContinent(c) { selectedContinent = c; document.querySelectorAll('.cont-btn').forEach(b => b.classList.toggle('selected', b.textContent.startsWith(c))); $('startBtn').disabled = false; }
 
 $('startBtn').onclick = () => {
-  ws.send(JSON.stringify({ type:'start', continent: selectedContinent, showFlags: $('showFlags').checked }));
+  ws.send(JSON.stringify({ type:'start', continent: selectedContinent, showFlags: $('showFlags').checked, timer: selectedTimer }));
 };
 $('nextBtn').onclick = () => ws.send(JSON.stringify({type:'next'}));
 </script>
