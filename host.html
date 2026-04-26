@@ -282,21 +282,29 @@ function toggleMusic(){
 }
 function sfxLobbyMusic(){
   if(lobbyMusicTimer)return;
-  const bpm=200,b=60000/bpm,v=0.18;
-  // Jeopardy think music melody (simplified)
+  const q=375,h=750,dq=563,e=188,v=0.18;
+  // Jeopardy "Think!" theme — actual melody
+  // C4=262, D4=294, E4=330, F4=349, G4=392, A4=440, Bb4=466, C5=523, D5=587, F3=175
   const notes=[
-    [392,b],[349,b/2],[392,b],[523,b],[440,b],[392,b],[349,b],
-    [392,b],[349,b/2],[392,b],[440,b*1.5],[0,b/2],
-    [392,b],[349,b/2],[392,b],[523,b],[440,b],[392,b],[349,b],
-    [262,b],[294,b],[330,b],[349,b],[330,b],[294,b],[262,b*2],
+    // Bar 1-2: pickup + main phrase
+    [262,q],[349,q],[262,q],[175,q],
+    [262,q],[349,q],[262,q],[0,q],
+    // Bar 3-4
+    [262,q],[349,q],[262,q],[349,q],
+    [330,dq],[294,e],[262,h],
+    // Bar 5-6 (repeat with variation)
+    [262,q],[349,q],[262,q],[175,q],
+    [262,q],[349,q],[262,q],[0,q],
+    // Bar 7-8 (ending phrase)
+    [349,q],[392,q],[440,q],[466,q],
+    [523,h],[0,h],
   ];
   let t=0;
   const ids=notes.map(([f,d])=>{
-    const id=f?setTimeout(()=>playTone(f,d/1000*0.9,'sine',v),t):null;
+    const id=f?setTimeout(()=>playTone(f,d/1000*0.85,'sine',v),t):null;
     t+=d;return id;
   });
   lobbyMusicTimer=setTimeout(()=>{lobbyMusicTimer=null;if(musicOn)sfxLobbyMusic();},t);
-  lobbyMusicTimer._ids=ids;
 }
 function stopLobbyMusic(){
   if(lobbyMusicTimer){clearTimeout(lobbyMusicTimer);lobbyMusicTimer=null;}
