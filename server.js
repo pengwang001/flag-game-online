@@ -114,11 +114,22 @@ function sendQuestion() {
   }
 }
 
+// Leaderboard (top 20, persists in memory)
+let leaderboard = [];
+function addToLeaderboard(name, score, continent) {
+  leaderboard.push({ name, score, continent, date: new Date().toISOString().slice(0,10) });
+  leaderboard.sort((a,b) => b.score - a.score);
+  leaderboard = leaderboard.slice(0, 20);
+}
+
 function endGame() {
   state = 'result';
   clearInterval(clueTimer);
   const sorted = [...players].sort((a, b) => b.score - a.score);
-  broadcast({ type: 'gameover', players: sorted.map(p => ({ name: p.name, score: p.score, color: p.color })) });
+  // Add all players to leaderboard
+  sorted.forEach(p => addToLeaderboard(p.name, p.score, continent));
+  if (players.length === 0 && soloScore > 0) addToLeaderboard('Host', soloScore, continent);
+  broadcast({ type: 'gameover', players: sorted.map(p => ({ name: p.name, score: p.score, color: p.color })), leaderboard, soloScore });
 }
 
 // MIME types

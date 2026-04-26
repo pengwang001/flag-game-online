@@ -71,6 +71,8 @@ input{width:100%;padding:14px;border:2px solid #333;border-radius:10px;backgroun
 <div id="gameover" class="screen">
   <h2 id="gameoverTitle">🏆 Game Over!</h2>
   <ol id="finalList" class="final-list"></ol>
+  <h3 style="margin-top:15px;color:#f59e0b">👑 Leaderboard</h3>
+  <ol id="leaderList" class="final-list" style="font-size:.9em"></ol>
 </div>
 
 <script>
@@ -212,6 +214,11 @@ function handle(m) {
     $('finalList').innerHTML = m.players.map((p,i) =>
       `<li style="background:${p.color}">${medals[i]||'  '} ${p.name} <span>${p.score} ${t('pts')}</span></li>`
     ).join('');
+    if (m.leaderboard && m.leaderboard.length) {
+      $('leaderList').innerHTML = m.leaderboard.map((e,i) =>
+        `<li style="background:${i<3?'rgba(245,158,11,.15)':'rgba(22,33,62,.85)'}"><span>${i+1}. ${e.name}</span><span>${e.score} ${t('pts')}</span></li>`
+      ).join('');
+    }
   }
 }
 

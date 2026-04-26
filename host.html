@@ -113,6 +113,8 @@ h1{font-size:2em;margin-bottom:10px}
 <div id="results" class="screen">
   <h2>🏆 Final Scores</h2>
   <ol id="resultList" class="result-list"></ol>
+  <h3 style="margin-top:20px;color:#f59e0b">👑 Leaderboard</h3>
+  <ol id="leaderboardList" class="result-list" style="font-size:.95em"></ol>
   <button class="next-btn" onclick="ws.send(JSON.stringify({type:'back_to_lobby'}))">Play Again</button>
 </div>
 
@@ -330,6 +332,12 @@ function handleMsg(e) {
         ).join('');
     }
     setTimeout(spawnConfetti, 2000);
+    // Leaderboard
+    if (m.leaderboard && m.leaderboard.length) {
+      $('leaderboardList').innerHTML = m.leaderboard.map((e,i) =>
+        `<li style="background:${i<3?'rgba(245,158,11,.15)':'rgba(22,33,62,.85)'};animation:winnerPop .3s ease-out ${i*0.05}s both"><span>${i+1}. ${e.name}</span><span>${e.score} pts · ${e.continent}</span></li>`
+      ).join('');
+    }
   }
 };
 
