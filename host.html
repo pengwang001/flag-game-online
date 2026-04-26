@@ -72,8 +72,16 @@ h1{font-size:2em;margin-bottom:10px}
 
 <script>
 const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-const ws = new WebSocket(`${proto}://${location.host}`);
+let ws;
 let selectedContinent = null;
+
+function connectWs() {
+  ws = new WebSocket(`${proto}://${location.host}`);
+  ws.onopen = () => ws.send(JSON.stringify({type:'host'}));
+  ws.onclose = () => setTimeout(connectWs, 1500);
+  ws.onmessage = handleMsg;
+}
+connectWs();
 
 const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
 function playTone(freq,dur,type='sine',vol=0.3){
@@ -96,9 +104,7 @@ $('joinLink').href = joinUrl;
 $('joinLink').textContent = joinUrl;
 fetch('/qr').then(r=>r.json()).then(d=>{$('qrCode').src=d.qr;}).catch(()=>{});
 
-ws.onopen = () => ws.send(JSON.stringify({type:'host'}));
-
-ws.onmessage = e => {
+function handleMsg(e) {
   const m = JSON.parse(e.data);
 
   if (m.type === 'lobby') {
