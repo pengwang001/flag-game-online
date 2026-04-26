@@ -270,7 +270,8 @@ function sfxGameOver(){
   // Drumroll effect
   setTimeout(()=>{for(let i=0;i<6;i++)setTimeout(()=>playTone(200+i*30,.05,'square',.1),i*50)},100);
 }
-let lobbyMusicTimer=null;
+function sfxPlayerJoin(){playTone(523,.1,'sine',0.25);setTimeout(()=>playTone(659,.1,'sine',0.25),100);setTimeout(()=>playTone(784,.15,'sine',0.25),200)}
+let lastPlayerCount=0;
 function sfxLobbyMusic(){
   if(lobbyMusicTimer)return;
   const bpm=200,b=60000/bpm,v=0.18;
@@ -326,6 +327,8 @@ function handleMsg(e) {
     show('lobby');
     if(audioCtx.state==='suspended')audioCtx.resume();
     sfxLobbyMusic();
+    if(m.players.length > lastPlayerCount && lastPlayerCount > 0) sfxPlayerJoin();
+    lastPlayerCount = m.players.length;
     $('lobbyPlayers').innerHTML = m.players.map(p =>
       `<div class="player-badge" style="background:${p.color}">${p.name}</div>`
     ).join('') || '<p style="color:#666">No players yet</p>';
