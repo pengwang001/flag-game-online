@@ -16,6 +16,7 @@ eval(fs.readFileSync(path.join(__dirname, 'zh-clues.js'), 'utf8').replace('const
 
 let CAPITALS;
 eval(fs.readFileSync(path.join(__dirname, 'capitals.js'), 'utf8').replace('const CAPITALS', 'CAPITALS'));
+eval(fs.readFileSync(path.join(__dirname, 'us-states-clues.js'), 'utf8').replace('const US_STATE_CLUES', 'US_STATE_CLUES'));
 
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
@@ -156,11 +157,13 @@ function sendQuestion() {
   } else if (gameType === 'usmap') {
     const pool = US_STATES.filter(n => n !== q.name);
     const opts = shuffle([q.name, ...shuffle(pool).slice(0, 3)]);
-    currentQuestion = { name: q.name, options: opts };
+    const clues = shuffle([...(US_STATE_CLUES[q.name] || [])]);
+    currentQuestion = { name: q.name, clues, options: opts };
     base = {
       type: 'question', gameType: 'usmap', round: questionIdx + 1, total: countries.length,
       stateName: q.name,
-      options: currentQuestion.options, points: timerSec ? MAX_CLUES : 1, timer: timerSec,
+      clues: [clues[0]], clueNum: 1, maxClues: Math.min(MAX_CLUES, clues.length),
+      options: currentQuestion.options, points: MAX_CLUES, timer: timerSec,
     };
   } else if (gameType === 'camap') {
     const pool = CA_PROVINCES.filter(n => n !== q.name);
@@ -178,7 +181,7 @@ function sendQuestion() {
   players.forEach(p => sendTo(p.ws, base));
 
   // Progressive clue reveal (trivia + local only)
-  if (gameType !== 'map' && gameType !== 'capital' && gameType !== 'flagquiz' && gameType !== 'usmap' && gameType !== 'camap') {
+  if (gameType !== 'map' && gameType !== 'capital' && gameType !== 'flagquiz' && gameType !== 'camap') {
     const clues = currentQuestion.clues;
     const zhClues = currentQuestion.zhClues;
     clueIdx = 1;
@@ -356,7 +359,7 @@ wss.on('connection', (ws) => {
       clearInterval(clueTimer);
       clearInterval(roundTimer);
       const correct = msg.answer === currentQuestion.name;
-      const noClueTypes = new Set(['map','capital','flagquiz','usmap','camap']);
+      const noClueTypes = new Set(['map','capital','flagquiz','camap']);
       const pts = correct ? (noClueTypes.has(gameType) ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1)) : 0;
       soloScore += pts;
       sendTo(hostWs, { type: 'solo_result', correct, correctAnswer: currentQuestion.name, pts, totalScore: soloScore });
@@ -367,7 +370,7 @@ wss.on('connection', (ws) => {
       answered.add(playerId);
       const correct = msg.answer === currentQuestion.name;
       const p = players.find(x => x.id === playerId);
-      if (correct && p) { const nc=new Set(['map','capital','flagquiz','usmap','camap']); p.score += nc.has(gameType) ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1); }
+      if (correct && p) { const nc=new Set(['map','capital','flagquiz','camap']); p.score += nc.has(gameType) ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1); }
 
       sendTo(hostWs, {
         type: 'player_answered', playerId, name: p?.name, answer: msg.answer, correct,

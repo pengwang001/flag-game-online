@@ -199,7 +199,8 @@ function handle(m) {
       $('pointsHint').textContent = m.timer ? `⚡ ${m.points} ${t('pts')}` : '⚡ 1 pt';
     } else if (m.gameType === 'usmap') {
       $('mapSvg').style.display='block';
-      $('pointsHint').textContent = m.timer ? `⚡ ${m.points} ${t('pts')}` : '⚡ 1 pt';
+      $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
+      $('clueList').innerHTML = `<div class="clue">💡 ${m.clues[0]}</div>`;
       drawUsMapOnPlayer(m.stateName);
     } else if (m.gameType === 'camap') {
       $('mapSvg').style.display='block';

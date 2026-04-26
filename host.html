@@ -636,7 +636,8 @@ function handleMsg(e) {
       $('pointsHint').textContent = m.timer ? `⚡ ${m.points} pts` : '⚡ 1 pt';
     } else if (m.gameType === 'usmap') {
       $('mapSvg').style.display='block';
-      $('pointsHint').textContent = m.timer ? `⚡ ${m.points} pts` : '⚡ 1 pt';
+      $('pointsHint').textContent = `⚡ ${m.points} pts`;
+      $('clueList').innerHTML = `<div class="clue">💡 ${m.clues[0]}</div>`;
       drawUsMapOnHost(m.stateName);
     } else if (m.gameType === 'camap') {
       $('mapSvg').style.display='block';
