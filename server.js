@@ -14,6 +14,9 @@ eval(raw.replace('const DATA', 'DATA'));
 let ZH_CLUES = {};
 eval(fs.readFileSync(path.join(__dirname, 'zh-clues.js'), 'utf8').replace('const ZH_CLUES', 'ZH_CLUES'));
 
+let CAPITALS;
+eval(fs.readFileSync(path.join(__dirname, 'capitals.js'), 'utf8').replace('const CAPITALS', 'CAPITALS'));
+
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
 // Game state
@@ -55,7 +58,8 @@ function sendTo(ws, msg) { if (ws?.readyState === 1) ws.send(JSON.stringify(msg)
 function lobbyState() {
   const continents = Object.entries(DATA).map(([name, arr]) => ({ name, count: arr.length }));
   const mapContinents = Object.entries(MAP_CONTINENTS).map(([name, arr]) => ({ name, count: arr.length }));
-  broadcast({ type: 'lobby', players: players.map(p => ({ id: p.id, name: p.name, color: p.color })), showFlags, continents, mapContinents });
+  const capitalContinents = Object.entries(CAPITALS).map(([name, arr]) => ({ name, count: arr.length }));
+  broadcast({ type: 'lobby', players: players.map(p => ({ id: p.id, name: p.name, color: p.color })), showFlags, continents, mapContinents, capitalContinents });
 }
 
 let soloScore = 0;
@@ -127,6 +131,15 @@ function sendQuestion() {
       clues: [clues[0]], clueNum: 1, maxClues: Math.min(MAX_CLUES, clues.length),
       options: LOCAL_OPTIONS, points: MAX_CLUES, timer: timerSec,
     };
+  } else if (gameType === 'capital') {
+    const pool = CAPITALS[continent].filter(c => c.name !== q.name);
+    const opts = shuffle([q.capital, ...shuffle(pool).map(c => c.capital).slice(0, 3)]);
+    currentQuestion = { name: q.capital, options: opts };
+    base = {
+      type: 'question', gameType: 'capital', round: questionIdx + 1, total: countries.length,
+      country: q.name, flag: q.flag,
+      options: currentQuestion.options, points: timerSec ? MAX_CLUES : 1, timer: timerSec,
+    };
   }
 
   roundStartTime = Date.now();
@@ -134,7 +147,7 @@ function sendQuestion() {
   players.forEach(p => sendTo(p.ws, base));
 
   // Progressive clue reveal (trivia + local only)
-  if (gameType !== 'map') {
+  if (gameType !== 'map' && gameType !== 'capital') {
     const clues = currentQuestion.clues;
     const zhClues = currentQuestion.zhClues;
     clueIdx = 1;
@@ -283,6 +296,10 @@ wss.on('connection', (ws) => {
       } else if (gameType === 'local') {
         roundsPerGame = Math.min(msg.rounds || 12, LOCAL_CITIES.length);
         countries = shuffle([...LOCAL_CITIES]).slice(0, roundsPerGame);
+      } else if (gameType === 'capital') {
+        const pool = CAPITALS[continent] || [];
+        roundsPerGame = Math.min(msg.rounds || 15, pool.length);
+        countries = shuffle([...pool]).slice(0, roundsPerGame);
       }
       questionIdx = 0;
       players.forEach(p => p.score = 0);
@@ -296,7 +313,7 @@ wss.on('connection', (ws) => {
       clearInterval(clueTimer);
       clearInterval(roundTimer);
       const correct = msg.answer === currentQuestion.name;
-      const pts = correct ? (gameType === 'map' ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1)) : 0;
+      const pts = correct ? (gameType === 'map' || gameType === 'capital' ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1)) : 0;
       soloScore += pts;
       sendTo(hostWs, { type: 'solo_result', correct, correctAnswer: currentQuestion.name, pts, totalScore: soloScore });
       autoAdvanceTimer = setTimeout(() => { questionIdx++; sendQuestion(); }, 3000);
@@ -306,7 +323,7 @@ wss.on('connection', (ws) => {
       answered.add(playerId);
       const correct = msg.answer === currentQuestion.name;
       const p = players.find(x => x.id === playerId);
-      if (correct && p) p.score += gameType === 'map' ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1);
+      if (correct && p) p.score += gameType === 'map' || gameType === 'capital' ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1);
 
       sendTo(hostWs, {
         type: 'player_answered', playerId, name: p?.name, answer: msg.answer, correct,

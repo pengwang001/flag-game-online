@@ -169,11 +169,16 @@ function handle(m) {
 
     if (m.gameType === 'map') {
       $('mapSvg').style.display='block';
-      $('pointsHint').textContent = '⚡ 1 pt';
+      $('pointsHint').textContent = m.timer ? `⚡ ${m.points} ${t('pts')}` : '⚡ 1 pt';
       drawMapOnPlayer(m.topoName, m.continent);
     } else if (m.gameType === 'local') {
       $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
       $('clueList').innerHTML = renderLocalClue(m.clues[0]);
+    } else if (m.gameType === 'capital') {
+      $('flag').style.display='block';
+      $('flag').textContent = m.flag;
+      $('clueList').innerHTML = `<div class="clue" style="font-size:1.2em">What is the capital of <b>${m.country}</b>?</div>`;
+      $('pointsHint').textContent = m.timer ? `⚡ ${m.points} ${t('pts')}` : '⚡ 1 pt';
     } else {
       $('flag').style.display='block';
       $('flag').textContent = m.flag;

@@ -68,6 +68,7 @@ h1{font-size:2em;margin-bottom:10px}
   <div class="lang-toggle" style="margin-bottom:15px">
     <button class="lang-btn active" onclick="setGameMode('trivia')">🌍 Country Trivia</button>
     <button class="lang-btn" onclick="setGameMode('map')">🗺️ Map Quiz</button>
+    <button class="lang-btn" onclick="setGameMode('capital')">🏛️ Capital City</button>
     <button class="lang-btn" onclick="setGameMode('local')">📍 Local Explorer</button>
   </div>
 
@@ -91,7 +92,32 @@ h1{font-size:2em;margin-bottom:10px}
     <p style="color:#888;margin:10px 0">Identify countries by their shape on the map!</p>
     <h3>Pick a continent:</h3>
     <div id="mapContinents" class="continents"></div>
+    <div style="margin-top:10px">
+      <span style="color:#888">Timer:</span>
+      <div class="lang-toggle" id="mapTimerSelect">
+        <button class="lang-btn active" onclick="pickMapTimer(0)">No timer</button>
+        <button class="lang-btn" onclick="pickMapTimer(15)">15s</button>
+        <button class="lang-btn" onclick="pickMapTimer(20)">20s</button>
+        <button class="lang-btn" onclick="pickMapTimer(30)">30s</button>
+      </div>
+    </div>
     <button id="mapStartBtn" class="start-btn" disabled onclick="startMap()">Start Map Quiz</button>
+  </div>
+
+  <div id="capitalOptions" style="display:none;margin-top:10px">
+    <p style="color:#888;margin:10px 0">Name the capital city of each country!</p>
+    <h3>Pick a continent:</h3>
+    <div id="capitalContinents" class="continents"></div>
+    <div style="margin-top:10px">
+      <span style="color:#888">Timer:</span>
+      <div class="lang-toggle" id="capitalTimerSelect">
+        <button class="lang-btn active" onclick="pickCapitalTimer(0)">No timer</button>
+        <button class="lang-btn" onclick="pickCapitalTimer(15)">15s</button>
+        <button class="lang-btn" onclick="pickCapitalTimer(20)">20s</button>
+        <button class="lang-btn" onclick="pickCapitalTimer(30)">30s</button>
+      </div>
+    </div>
+    <button id="capitalStartBtn" class="start-btn" disabled onclick="startCapital()">Start Capital City</button>
   </div>
 
   <div id="localOptions" style="display:none;margin-top:10px">
@@ -130,6 +156,7 @@ let selectedContinent = null;
 let selectedTimer = 0;
 let soloScore = 0;
 let selectedMapContinent = null;
+let selectedCapitalContinent = null;
 let currentGameMode = 'trivia';
 let allMapFeatures = null;
 const MAP_CONTINENTS_CLIENT = {};
@@ -145,9 +172,26 @@ function pickMapContinent(c) {
   document.querySelectorAll('#mapContinents .cont-btn').forEach(b => b.classList.toggle('selected', b.textContent.startsWith(c)));
   $('mapStartBtn').disabled = false;
 }
+function pickCapitalContinent(c) {
+  selectedCapitalContinent = c;
+  document.querySelectorAll('#capitalContinents .cont-btn').forEach(b => b.classList.toggle('selected', b.textContent.startsWith(c)));
+  $('capitalStartBtn').disabled = false;
+}
+function pickMapTimer(s) {
+  selectedTimer = s;
+  document.querySelectorAll('#mapTimerSelect .lang-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
+}
+function pickCapitalTimer(s) {
+  selectedTimer = s;
+  document.querySelectorAll('#capitalTimerSelect .lang-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
+}
 function startMap() {
   if (!selectedMapContinent) return;
   ws.send(JSON.stringify({ type:'start', gameType:'map', continent: selectedMapContinent, timer: selectedTimer }));
+}
+function startCapital() {
+  if (!selectedCapitalContinent) return;
+  ws.send(JSON.stringify({ type:'start', gameType:'capital', continent: selectedCapitalContinent, timer: selectedTimer }));
 }
 function startLocal() {
   ws.send(JSON.stringify({ type:'start', gameType:'local', timer: selectedTimer }));
@@ -182,9 +226,10 @@ function setGameMode(mode) {
   currentGameMode = mode;
   $('triviaOptions').style.display = mode==='trivia' ? 'block' : 'none';
   $('mapOptions').style.display = mode==='map' ? 'block' : 'none';
+  $('capitalOptions').style.display = mode==='capital' ? 'block' : 'none';
   $('localOptions').style.display = mode==='local' ? 'block' : 'none';
   document.querySelectorAll('.lang-toggle')[0].querySelectorAll('.lang-btn').forEach(b =>
-    b.classList.toggle('active', (mode==='trivia'&&b.textContent.includes('Country'))||(mode==='map'&&b.textContent.includes('Map'))||(mode==='local'&&b.textContent.includes('Local')))
+    b.classList.toggle('active', (mode==='trivia'&&b.textContent.includes('Country'))||(mode==='map'&&b.textContent.includes('Map'))||(mode==='capital'&&b.textContent.includes('Capital'))||(mode==='local'&&b.textContent.includes('Local')))
   );
 }
 
@@ -267,11 +312,17 @@ function handleMsg(e) {
     }
     $('startBtn').disabled = !selectedContinent;
     $('mapStartBtn').disabled = !selectedMapContinent;
+    $('capitalStartBtn').disabled = !selectedCapitalContinent;
     // Re-apply game mode visibility
     setGameMode(currentGameMode);
     if (m.mapContinents) {
       $('mapContinents').innerHTML = m.mapContinents.map(c =>
         `<button class="cont-btn${selectedMapContinent===c.name?' selected':''}" onclick="pickMapContinent('${c.name}')">${c.name} (${c.count})</button>`
+      ).join('');
+    }
+    if (m.capitalContinents) {
+      $('capitalContinents').innerHTML = m.capitalContinents.map(c =>
+        `<button class="cont-btn${selectedCapitalContinent===c.name?' selected':''}" onclick="pickCapitalContinent('${c.name}')">${c.name} (${c.count})</button>`
       ).join('');
     }
   }
@@ -289,7 +340,7 @@ function handleMsg(e) {
 
     if (m.gameType === 'map') {
       $('mapSvg').style.display='block';
-      $('pointsHint').textContent = '⚡ 1 pt';
+      $('pointsHint').textContent = m.timer ? `⚡ ${m.points} pts` : '⚡ 1 pt';
       // Get continent members from server data
       fetch('/countries-110m.json').then(r=>r.json()).then(()=>{
         const MC={"Europe":["Albania","Austria","Belarus","Belgium","Bosnia and Herz.","Bulgaria","Croatia","Czechia","Denmark","Estonia","Finland","France","Germany","Greece","Hungary","Iceland","Ireland","Italy","Kosovo","Latvia","Lithuania","Luxembourg","Macedonia","Moldova","Montenegro","Netherlands","Norway","Poland","Portugal","Romania","Russia","Serbia","Slovakia","Slovenia","Spain","Sweden","Switzerland","Ukraine","United Kingdom"],"Asia":["Afghanistan","Armenia","Azerbaijan","Bangladesh","Bhutan","Brunei","Cambodia","China","Cyprus","Georgia","India","Indonesia","Iran","Iraq","Israel","Japan","Jordan","Kazakhstan","Kuwait","Kyrgyzstan","Laos","Lebanon","Malaysia","Mongolia","Myanmar","Nepal","North Korea","Oman","Pakistan","Philippines","Qatar","Saudi Arabia","South Korea","Sri Lanka","Syria","Taiwan","Tajikistan","Thailand","Timor-Leste","Turkey","Turkmenistan","United Arab Emirates","Uzbekistan","Vietnam","Yemen"],"North America":["Bahamas","Belize","Canada","Costa Rica","Cuba","Dominican Rep.","El Salvador","Guatemala","Haiti","Honduras","Jamaica","Mexico","Nicaragua","Panama","Puerto Rico","Trinidad and Tobago","United States of America"],"South America":["Argentina","Bolivia","Brazil","Chile","Colombia","Ecuador","Guyana","Paraguay","Peru","Suriname","Uruguay","Venezuela"]};
@@ -298,6 +349,11 @@ function handleMsg(e) {
     } else if (m.gameType === 'local') {
       $('pointsHint').textContent = `⚡ ${m.points} pts`;
       $('clueList').innerHTML = renderLocalClue(m.clues[0]);
+    } else if (m.gameType === 'capital') {
+      $('flagArea').style.display='block';
+      $('flagArea').textContent = m.flag;
+      $('clueList').innerHTML = `<div class="clue" style="font-size:1.3em">What is the capital of <b>${m.country}</b>?</div>`;
+      $('pointsHint').textContent = m.timer ? `⚡ ${m.points} pts` : '⚡ 1 pt';
     } else {
       $('flagArea').style.display='block';
       $('flagArea').textContent = m.flag;
@@ -422,7 +478,7 @@ function handleMsg(e) {
 };
 
 function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); $(id).classList.add('active'); }
-function pickContinent(c) { selectedContinent = c; document.querySelectorAll('.cont-btn').forEach(b => b.classList.toggle('selected', b.textContent.startsWith(c))); $('startBtn').disabled = false; }
+function pickContinent(c) { selectedContinent = c; document.querySelectorAll('#continents .cont-btn').forEach(b => b.classList.toggle('selected', b.textContent.startsWith(c))); $('startBtn').disabled = false; }
 
 $('startBtn').onclick = () => {
   ws.send(JSON.stringify({ type:'start', gameType:'trivia', continent: selectedContinent, showFlags: $('showFlags').checked, timer: selectedTimer }));
