@@ -130,6 +130,7 @@ let selectedContinent = null;
 let selectedTimer = 0;
 let soloScore = 0;
 let selectedMapContinent = null;
+let currentGameMode = 'trivia';
 let allMapFeatures = null;
 const MAP_CONTINENTS_CLIENT = {};
 const MAP_DISPLAY={"United States of America":"United States","Dominican Rep.":"Dominican Republic","Czechia":"Czech Republic","Bosnia and Herz.":"Bosnia","Macedonia":"North Macedonia"};
@@ -178,6 +179,7 @@ function soloAnswer(btn, name) {
 }
 
 function setGameMode(mode) {
+  currentGameMode = mode;
   $('triviaOptions').style.display = mode==='trivia' ? 'block' : 'none';
   $('mapOptions').style.display = mode==='map' ? 'block' : 'none';
   $('localOptions').style.display = mode==='local' ? 'block' : 'none';
@@ -264,6 +266,9 @@ function handleMsg(e) {
       ).join('');
     }
     $('startBtn').disabled = !selectedContinent;
+    $('mapStartBtn').disabled = !selectedMapContinent;
+    // Re-apply game mode visibility
+    setGameMode(currentGameMode);
     if (m.mapContinents) {
       $('mapContinents').innerHTML = m.mapContinents.map(c =>
         `<button class="cont-btn${selectedMapContinent===c.name?' selected':''}" onclick="pickMapContinent('${c.name}')">${c.name} (${c.count})</button>`
