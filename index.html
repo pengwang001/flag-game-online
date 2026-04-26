@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌍 Guess the Country!</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+h1{font-size:2rem;margin:1.5rem 0;text-align:center}
+.container{max-width:650px;width:92%;margin:0 auto}
+.screen{display:none;width:100%}.screen.active{display:block}
+.subtitle{text-align:center;font-size:1.1rem;color:#94a3b8;margin-bottom:1rem}
+.setup-section{background:#1e293b;border-radius:12px;padding:1.2rem;margin:.8rem 0}
+.setup-section h3{font-size:1rem;color:#94a3b8;margin-bottom:.8rem}
+.player-inputs{display:flex;flex-direction:column;gap:.8rem}
+.player-row{display:flex;align-items:center;gap:.6rem}
+.player-row .dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.player-row input{flex:1;padding:.5rem .8rem;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;font-size:1rem}
+.avatar-picker{display:flex;gap:.3rem;flex-wrap:wrap}
+.avatar-btn{font-size:1.5rem;width:2.2rem;height:2.2rem;border:2px solid transparent;border-radius:8px;background:none;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.avatar-btn:hover{background:#334155;transform:scale(1.15)}
+.avatar-btn.selected{border-color:#3b82f6;background:#1e3a5f;transform:scale(1.15)}
+.player-count{display:flex;gap:.5rem;margin-bottom:.8rem}
+.pc-btn{padding:.5rem 1.2rem;border:2px solid #334155;border-radius:8px;background:#1e293b;color:#e2e8f0;cursor:pointer;font-size:1rem;transition:all .2s}
+.pc-btn.active{border-color:#3b82f6;background:#1e3a5f}
+.toggle-row{display:flex;align-items:center;gap:.8rem;margin-top:.5rem}
+.toggle{position:relative;width:48px;height:26px;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0}
+.toggle .slider{position:absolute;inset:0;background:#475569;border-radius:13px;transition:.2s}
+.toggle .slider::before{content:'';position:absolute;width:20px;height:20px;left:3px;bottom:3px;background:#e2e8f0;border-radius:50%;transition:.2s}
+.toggle input:checked+.slider{background:#3b82f6}
+.toggle input:checked+.slider::before{transform:translateX(22px)}
+.continent-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}
+.continent-btn{padding:1.2rem;font-size:1.2rem;border:2px solid #334155;border-radius:12px;background:#1e293b;color:#e2e8f0;cursor:pointer;transition:all .2s}
+.continent-btn:hover{border-color:#3b82f6;background:#1e3a5f;transform:scale(1.03)}
+.turn-banner{text-align:center;font-size:1.3rem;margin-bottom:.5rem;padding:.6rem;border-radius:10px}
+.scoreboard{display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;margin-bottom:.8rem}
+.sb-chip{padding:.3rem .8rem;border-radius:8px;font-size:.95rem;border:2px solid #334155}
+.sb-chip.active-player{border-color:#fbbf24;background:#422006}
+.flag{font-size:8rem;text-align:center;margin:1rem 0;line-height:1.2}
+.clues{background:#1e293b;border-radius:12px;padding:1.2rem;margin:1rem 0}
+.clues li{margin:.4rem 0;font-size:1.05rem;list-style:none;padding-left:1.2rem;position:relative}
+.clues li::before{content:'•';position:absolute;left:0;color:#3b82f6}
+.landmark-img{width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin-bottom:.8rem;border:2px solid #334155}
+.points-hint{font-size:1.1rem;font-weight:bold;transition:color .3s}
+.reveal-btn{padding:.4rem 1rem;font-size:.9rem;border:1px solid #334155;border-radius:8px;background:#1e293b;color:#94a3b8;cursor:pointer;transition:all .2s}
+.reveal-btn:hover{border-color:#3b82f6;color:#e2e8f0}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-top:1rem}
+.choice-btn{padding:1rem;font-size:1.1rem;border:2px solid #334155;border-radius:10px;background:#1e293b;color:#e2e8f0;cursor:pointer;transition:all .2s}
+.choice-btn:hover{border-color:#3b82f6;background:#1e3a5f}
+.choice-btn.correct{border-color:#22c55e;background:#14532d;animation:pop .3s}
+.choice-btn.wrong{border-color:#ef4444;background:#450a0a}
+.choice-btn:disabled{cursor:default;opacity:.7}
+@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+.result{text-align:center;font-size:1.3rem;margin:1.2rem 0;min-height:2rem}
+.next-btn,.back-btn,.start-btn{display:inline-block;margin-top:1rem;padding:.8rem 2rem;font-size:1.1rem;border:none;border-radius:10px;background:#3b82f6;color:#fff;cursor:pointer;transition:background .2s}
+.next-btn:hover,.back-btn:hover{background:#2563eb}
+.back-btn{background:#475569}.back-btn:hover{background:#64748b}
+.btn-row{text-align:center;margin-top:1rem;display:flex;gap:.8rem;justify-content:center}
+.final{text-align:center;margin-top:2rem}
+.final h2{font-size:2rem;margin-bottom:1rem}
+.podium{display:flex;flex-direction:column;gap:.6rem;margin:1rem auto;max-width:350px}
+.podium-row{display:flex;align-items:center;gap:.8rem;padding:.8rem 1rem;background:#1e293b;border-radius:10px;font-size:1.1rem}
+.podium-row .medal{font-size:1.5rem;width:2rem;text-align:center}
+.podium-row .pname{flex:1}
+.podium-row .pscore{font-weight:bold;color:#fbbf24}
+.round-select{display:flex;gap:.5rem;margin-top:.5rem;flex-wrap:wrap}
+.round-select .pc-btn.active{border-color:#22c55e;background:#14532d}
+.timer-bar-container{width:100%;height:8px;background:#1e293b;border-radius:4px;margin:.5rem 0;overflow:hidden}
+.timer-bar{height:100%;background:#3b82f6;border-radius:4px;transition:width .1s linear}
+.timer-bar.warning{background:#f59e0b}
+.timer-bar.danger{background:#ef4444}
+.timer-display{text-align:center;font-size:2rem;font-weight:bold;margin:.2rem 0}
+.timer-display.warning{color:#f59e0b}
+.timer-display.danger{color:#ef4444;animation:pulse .5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+</style>
+</head>
+<body>
+<h1>🌍 Guess the Country!</h1>
+<div class="container">
+
+<div id="setup" class="screen active">
+<div class="setup-section">
+<h3>👥 Number of Players</h3>
+<div class="player-count" id="pcBtns"></div>
+<div class="player-inputs" id="playerInputs"></div>
+</div>
+<div class="setup-section">
+<h3>⚙️ Options</h3>
+<label class="toggle-row"><label class="toggle"><input type="checkbox" id="showFlag" checked><span class="slider"></span></label><span>Show national flag</span></label>
+<h3 style="margin-top:1rem">🔢 Rounds</h3>
+<div class="round-select" id="roundSelect"></div>
+<h3 style="margin-top:1rem">⏱️ Timer</h3>
+<div class="round-select" id="timerSelect"></div>
+</div>
+<p class="subtitle" style="margin-top:1rem">Pick a continent:</p>
+<div class="continent-grid" id="continentGrid"></div>
+</div>
+
+<div id="game" class="screen">
+<div class="turn-banner" id="turnBanner"></div>
+<div class="timer-bar-container" id="timerBarContainer" style="display:none"><div class="timer-bar" id="timerBar"></div></div>
+<div class="timer-display" id="timerDisplay" style="display:none"></div>
+<div class="scoreboard" id="scoreboard"></div>
+<div class="flag" id="flag"></div>
+<img id="landmark" class="landmark-img" style="display:none">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem">
+<div class="points-hint" id="pointsHint"></div>
+<button class="reveal-btn" id="revealBtn" style="display:none" onclick="revealNextClue()">Show next clue ▼</button>
+</div>
+<ul class="clues" id="clues"></ul>
+<div class="choices" id="choices"></div>
+<div class="result" id="result"></div>
+<div class="btn-row">
+<button class="back-btn" onclick="showSetup()">← Menu</button>
+<button class="next-btn" id="nextBtn" style="display:none" onclick="nextTurn()">Next →</button>
+</div>
+</div>
+
+<div id="end" class="screen">
+<div class="final">
+<h2>🏁 Game Over!</h2>
+<div class="podium" id="podium"></div>
+<div class="btn-row" style="justify-content:center">
+<button class="back-btn" onclick="showSetup()">← Menu</button>
+<button class="next-btn" onclick="startGame(currentContinent)">Play Again</button>
+</div>
+</div>
+</div>
+
+</div>
+<script src="data.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

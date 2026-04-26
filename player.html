@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>🌍 Flag Game — Play</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui;background:#1a1a2e;color:#eee;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+h1{font-size:1.8em;margin-bottom:15px}
+.screen{display:none;width:100%;max-width:400px;text-align:center}
+.screen.active{display:block}
+input{width:100%;padding:14px;border:2px solid #333;border-radius:10px;background:#16213e;color:#eee;font-size:1.2em;text-align:center;margin:10px 0}
+.join-btn{width:100%;padding:14px;border:none;border-radius:10px;background:#3b82f6;color:#fff;font-size:1.2em;cursor:pointer}
+.flag{font-size:4em;margin:10px 0}
+.clues{text-align:left;margin:10px 0}
+.clue{padding:8px 12px;margin:4px 0;background:#16213e;border-radius:8px;font-size:.95em;animation:fadeIn .4s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+.options{display:grid;gap:10px;margin:15px 0}
+.opt{padding:16px;border:2px solid #333;border-radius:12px;background:#16213e;color:#eee;font-size:1.1em;cursor:pointer;transition:.15s;-webkit-tap-highlight-color:transparent}
+.opt:active{transform:scale(.97)}
+.opt.correct{border-color:#22c55e;background:#16332e}
+.opt.wrong{border-color:#ef4444;background:#331616}
+.opt.selected{border-color:#f59e0b;background:#332e16}
+.opt:disabled{cursor:default;opacity:.7}
+.points{color:#f59e0b;font-size:1.3em;font-weight:bold;margin:5px 0}
+.result{font-size:1.5em;margin:15px 0;padding:15px;border-radius:12px}
+.result.correct{background:#16332e;color:#22c55e}
+.result.wrong{background:#331616;color:#ef4444}
+.waiting{color:#888;font-size:1.1em;margin:15px 0}
+.status{font-size:.9em;color:#888;margin:5px 0}
+.final-list{list-style:none;margin:15px 0}
+.final-list li{padding:10px;margin:5px 0;border-radius:8px;display:flex;justify-content:space-between;font-size:1.1em}
+.landmark{max-width:250px;max-height:150px;border-radius:10px;margin:8px auto;display:block}
+</style>
+</head><body>
+<h1>🌍 Guess the Country!</h1>
+
+<div id="join" class="screen active">
+  <input id="nameInput" placeholder="Your name" maxlength="15" autofocus>
+  <button class="join-btn" id="joinBtn">Join Game</button>
+  <p id="joinError" style="color:#ef4444;margin-top:10px"></p>
+</div>
+
+<div id="wait" class="screen">
+  <p class="waiting">✅ You're in! Waiting for host to start...</p>
+</div>
+
+<div id="play" class="screen">
+  <div class="status" id="roundInfo"></div>
+  <div class="points" id="pointsHint"></div>
+  <div class="flag" id="flag"></div>
+  <img id="landmark" class="landmark" style="display:none">
+  <div id="clueList" class="clues"></div>
+  <div id="options" class="options"></div>
+  <div id="feedback"></div>
+</div>
+
+<div id="gameover" class="screen">
+  <h2>🏆 Game Over!</h2>
+  <ol id="finalList" class="final-list"></ol>
+</div>
+
+<script>
+const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+let ws;
+const $ = id => document.getElementById(id);
+
+function connect() {
+  ws = new WebSocket(`${proto}://${location.host}`);
+  ws.onopen = () => {};
+  ws.onmessage = e => handle(JSON.parse(e.data));
+  ws.onclose = () => setTimeout(connect, 2000);
+}
+connect();
+
+$('joinBtn').onclick = () => {
+  const name = $('nameInput').value.trim();
+  if (!name) { $('joinError').textContent = 'Enter a name!'; return; }
+  ws.send(JSON.stringify({ type: 'join', name }));
+};
+$('nameInput').onkeydown = e => { if (e.key === 'Enter') $('joinBtn').click(); };
+
+function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); $(id).classList.add('active'); }
+
+function handle(m) {
+  if (m.type === 'joined') show('wait');
+  if (m.type === 'error') $('joinError').textContent = m.msg;
+
+  if (m.type === 'lobby') show('wait');
+
+  if (m.type === 'question') {
+    show('play');
+    $('roundInfo').textContent = `Round ${m.round}/${m.total}`;
+    $('flag').textContent = m.flag;
+    if (m.img) { $('landmark').src = m.img; $('landmark').style.display = 'block'; }
+    else { $('landmark').style.display = 'none'; }
+    $('clueList').innerHTML = `<div class="clue">💡 ${m.clues[0]}</div>`;
+    $('pointsHint').textContent = `⚡ ${m.points} pts`;
+    $('feedback').innerHTML = '';
+    $('options').innerHTML = m.options.map(o =>
+      `<button class="opt" onclick="answer(this,'${o.replace(/'/g,"\\'")}')">${o}</button>`
+    ).join('');
+  }
+
+  if (m.type === 'clue') {
+    $('clueList').innerHTML += `<div class="clue">💡 ${m.clue}</div>`;
+    $('pointsHint').textContent = `⚡ ${m.points} pts`;
+  }
+
+  if (m.type === 'answer_result') {
+    document.querySelectorAll('.opt').forEach(b => {
+      b.disabled = true;
+      if (b.textContent === m.correctAnswer) b.classList.add('correct');
+    });
+    $('feedback').innerHTML = m.correct
+      ? '<div class="result correct">✅ Correct!</div>'
+      : `<div class="result wrong">❌ It was ${m.correctAnswer}</div>`;
+  }
+
+  if (m.type === 'gameover') {
+    show('gameover');
+    const medals = ['🥇','🥈','🥉'];
+    $('finalList').innerHTML = m.players.map((p,i) =>
+      `<li style="background:${p.color}">${medals[i]||'  '} ${p.name} <span>${p.score} pts</span></li>`
+    ).join('');
+  }
+}
+
+function answer(btn, name) {
+  document.querySelectorAll('.opt').forEach(b => { b.disabled = true; });
+  btn.classList.add('selected');
+  ws.send(JSON.stringify({ type: 'answer', answer: name }));
+}
+</script>
+</body></html>
