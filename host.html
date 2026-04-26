@@ -273,12 +273,12 @@ function sfxGameOver(){
 function sfxPlayerJoin(){playTone(523,.1,'sine',0.25);setTimeout(()=>playTone(659,.1,'sine',0.25),100);setTimeout(()=>playTone(784,.15,'sine',0.25),200)}
 let lastPlayerCount=0;
 let musicOn=false;
+let lobbyMusicTimer=null;
 function toggleMusic(){
-  if(audioCtx.state==='suspended')audioCtx.resume();
   musicOn=!musicOn;
   $('musicBtn').textContent=musicOn?'🔊 Music':'🔇 Music';
   $('musicBtn').style.color=musicOn?'#f59e0b':'#888';
-  musicOn?sfxLobbyMusic():stopLobbyMusic();
+  if(musicOn){audioCtx.resume().then(()=>sfxLobbyMusic());}else{stopLobbyMusic();}
 }
 function sfxLobbyMusic(){
   if(lobbyMusicTimer)return;
@@ -295,7 +295,7 @@ function sfxLobbyMusic(){
     const id=f?setTimeout(()=>playTone(f,d/1000*0.9,'sine',v),t):null;
     t+=d;return id;
   });
-  lobbyMusicTimer=setTimeout(()=>{lobbyMusicTimer=null;sfxLobbyMusic();},t);
+  lobbyMusicTimer=setTimeout(()=>{lobbyMusicTimer=null;if(musicOn)sfxLobbyMusic();},t);
   lobbyMusicTimer._ids=ids;
 }
 function stopLobbyMusic(){
