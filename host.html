@@ -64,7 +64,7 @@ h1{font-size:2em;margin-bottom:10px}
 
   <h3 style="margin-top:20px">Game Mode:</h3>
   <div class="lang-toggle" style="margin-bottom:15px">
-    <button class="lang-btn active" onclick="setGameMode('trivia')">🏳️ Flag Trivia</button>
+    <button class="lang-btn active" onclick="setGameMode('trivia')">🌍 Country Trivia</button>
     <button class="lang-btn" onclick="setGameMode('map')">🗺️ Map Quiz</button>
     <button class="lang-btn" onclick="setGameMode('local')">📍 Local Explorer</button>
   </div>
@@ -127,7 +127,7 @@ function setGameMode(mode) {
   $('mapOptions').style.display = mode==='map' ? 'block' : 'none';
   $('localOptions').style.display = mode==='local' ? 'block' : 'none';
   document.querySelectorAll('.lang-toggle')[0].querySelectorAll('.lang-btn').forEach(b =>
-    b.classList.toggle('active', (mode==='trivia'&&b.textContent.includes('Flag'))||(mode==='map'&&b.textContent.includes('Map'))||(mode==='local'&&b.textContent.includes('Local')))
+    b.classList.toggle('active', (mode==='trivia'&&b.textContent.includes('Country'))||(mode==='map'&&b.textContent.includes('Map'))||(mode==='local'&&b.textContent.includes('Local')))
   );
 }
 
