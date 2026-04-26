@@ -74,6 +74,17 @@ h1{font-size:2em;margin-bottom:10px}
     <button class="lang-btn" onclick="setGameMode('local')">📍 Local Explorer</button>
   </div>
 
+  <div style="margin-bottom:12px">
+    <span style="color:#888">Questions:</span>
+    <div class="lang-toggle" id="roundsSelect">
+      <button class="lang-btn" onclick="pickRounds(5)">5</button>
+      <button class="lang-btn active" onclick="pickRounds(10)">10</button>
+      <button class="lang-btn" onclick="pickRounds(15)">15</button>
+      <button class="lang-btn" onclick="pickRounds(20)">20</button>
+      <button class="lang-btn" onclick="pickRounds(0)">All</button>
+    </div>
+  </div>
+
   <div id="triviaOptions">
     <h3>Pick a continent:</h3>
     <div id="continents" class="continents"></div>
@@ -187,6 +198,7 @@ const proto = location.protocol === 'https:' ? 'wss' : 'ws';
 let ws;
 let selectedContinent = null;
 let selectedTimer = 0;
+let selectedRounds = 10;
 let soloScore = 0;
 let selectedMapContinent = null;
 let selectedCapitalContinent = null;
@@ -242,11 +254,11 @@ function pickCapitalTimer(s) {
 }
 function startMap() {
   if (!selectedMapContinent) return;
-  ws.send(JSON.stringify({ type:'start', gameType:'map', continent: selectedMapContinent, timer: selectedTimer }));
+  ws.send(JSON.stringify({ type:'start', gameType:'map', continent: selectedMapContinent, timer: selectedTimer, rounds: selectedRounds || 999 }));
 }
 function startCapital() {
   if (!selectedCapitalContinent) return;
-  ws.send(JSON.stringify({ type:'start', gameType:'capital', continent: selectedCapitalContinent, timer: selectedTimer }));
+  ws.send(JSON.stringify({ type:'start', gameType:'capital', continent: selectedCapitalContinent, timer: selectedTimer, rounds: selectedRounds || 999 }));
 }
 function pickFlagquizContinent(c) {
   selectedFlagquizContinent = c;
@@ -259,17 +271,17 @@ function pickFlagquizTimer(s) {
 }
 function startFlagquiz() {
   if (!selectedFlagquizContinent) return;
-  ws.send(JSON.stringify({ type:'start', gameType:'flagquiz', continent: selectedFlagquizContinent, timer: selectedTimer }));
+  ws.send(JSON.stringify({ type:'start', gameType:'flagquiz', continent: selectedFlagquizContinent, timer: selectedTimer, rounds: selectedRounds || 999 }));
 }
 function pickUsmapTimer(s) {
   selectedTimer = s;
   document.querySelectorAll('#usmapTimerSelect .lang-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
 }
 function startUsmap() {
-  ws.send(JSON.stringify({ type:'start', gameType:'usmap', timer: selectedTimer }));
+  ws.send(JSON.stringify({ type:'start', gameType:'usmap', timer: selectedTimer, rounds: selectedRounds || 999 }));
 }
 function startLocal() {
-  ws.send(JSON.stringify({ type:'start', gameType:'local', timer: selectedTimer }));
+  ws.send(JSON.stringify({ type:'start', gameType:'local', timer: selectedTimer, rounds: selectedRounds || 999 }));
 }
 
 function drawMapOnHost(topoName, cont, members) {
@@ -313,6 +325,10 @@ function setGameMode(mode) {
 function pickTimer(s) {
   selectedTimer = s;
   document.querySelectorAll('#timerSelect .lang-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
+}
+function pickRounds(n) {
+  selectedRounds = n;
+  document.querySelectorAll('#roundsSelect .lang-btn').forEach(b => b.classList.toggle('active', (n===0 && b.textContent==='All') || parseInt(b.textContent)===n));
 }
 
 function connectWs() {
@@ -616,7 +632,7 @@ function show(id) { document.querySelectorAll('.screen').forEach(s => s.classLis
 function pickContinent(c) { selectedContinent = c; document.querySelectorAll('#continents .cont-btn').forEach(b => b.classList.toggle('selected', b.textContent.startsWith(c))); $('startBtn').disabled = false; }
 
 $('startBtn').onclick = () => {
-  ws.send(JSON.stringify({ type:'start', gameType:'trivia', continent: selectedContinent, showFlags: $('showFlags').checked, timer: selectedTimer }));
+  ws.send(JSON.stringify({ type:'start', gameType:'trivia', continent: selectedContinent, showFlags: $('showFlags').checked, timer: selectedTimer, rounds: selectedRounds || 999 }));
 };
 $('nextBtn').onclick = () => ws.send(JSON.stringify({type:'next'}));
 </script>
