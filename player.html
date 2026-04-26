@@ -8,6 +8,7 @@ body{font-family:system-ui;background:#1a1a2e url('/gamebackground.png') center/
 h1{font-size:1.8em;margin-bottom:15px}
 .screen{display:none;width:100%;max-width:400px;text-align:center}
 .screen.active{display:block}
+.screen.active#play{display:flex;flex-direction:column;height:calc(100vh - 40px);height:calc(100dvh - 40px)}
 input{width:100%;padding:14px;border:2px solid #333;border-radius:10px;background:#16213e;color:#eee;font-size:1.2em;text-align:center;margin:10px 0}
 .join-btn{width:100%;padding:14px;border:none;border-radius:10px;background:#3b82f6;color:#fff;font-size:1.2em;cursor:pointer}
 .lang-toggle{display:flex;gap:8px;justify-content:center;margin:12px 0}
@@ -17,7 +18,7 @@ input{width:100%;padding:14px;border:2px solid #333;border-radius:10px;backgroun
 .clues{text-align:left;margin:10px 0}
 .clue{padding:8px 12px;margin:4px 0;background:#16213e;border-radius:8px;font-size:.95em;animation:fadeIn .4s}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
-.options{display:grid;gap:10px;margin:15px 0}
+.options{display:grid;gap:10px;margin:0;flex-shrink:0}
 .opt{padding:16px;border:2px solid #333;border-radius:12px;background:#16213e;color:#eee;font-size:1.1em;cursor:pointer;transition:.15s;-webkit-tap-highlight-color:transparent}
 .opt:active{transform:scale(.97)}
 .opt.correct{border-color:#22c55e;background:#16332e}
@@ -60,6 +61,7 @@ input{width:100%;padding:14px;border:2px solid #333;border-radius:10px;backgroun
 </div>
 
 <div id="play" class="screen">
+  <div id="playScroll" style="flex:1;overflow-y:auto;min-height:0">
   <div class="status" id="roundInfo"></div>
   <div class="timer-wrap" id="timerWrap"><div class="timer-bar-bg"><div class="timer-bar-fill" id="timerBar" style="width:100%"></div></div><div class="timer-text" id="timerText"></div></div>
   <div class="points" id="pointsHint"></div>
@@ -67,6 +69,7 @@ input{width:100%;padding:14px;border:2px solid #333;border-radius:10px;backgroun
   <img id="landmark" class="landmark" style="display:none">
   <svg id="mapSvg" width="380" height="260" style="display:none;background:#0f1629;border-radius:10px;margin:8px auto"></svg>
   <div id="clueList" class="clues"></div>
+  </div>
   <div id="options" class="options"></div>
   <div id="feedback"></div>
 </div>
@@ -202,6 +205,7 @@ function handle(m) {
       $('clueList').innerHTML += `<div class="clue">💡 ${lang==='zh' && m.zhClue ? m.zhClue : m.clue}</div>`;
     }
     if (m.points) $('pointsHint').textContent = `⚡ ${m.points} ${t('pts')}`;
+    $('playScroll').scrollTop=$('playScroll').scrollHeight;
   }
 
   if (m.type === 'timer_tick') {
