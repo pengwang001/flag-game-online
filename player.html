@@ -64,6 +64,20 @@ const proto = location.protocol === 'https:' ? 'wss' : 'ws';
 let ws;
 const $ = id => document.getElementById(id);
 
+// Sound effects (Web Audio API — no files needed)
+const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+function playTone(freq,dur,type='sine',vol=0.3){
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type=type;o.frequency.value=freq;g.gain.value=vol;
+  o.connect(g);g.connect(audioCtx.destination);
+  o.start();g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
+  o.stop(audioCtx.currentTime+dur);
+}
+function sfxCorrect(){playTone(523,.1);setTimeout(()=>playTone(659,.1),100);setTimeout(()=>playTone(784,.2),200)}
+function sfxWrong(){playTone(200,.15,'square',0.2);setTimeout(()=>playTone(150,.3,'square',0.2),150)}
+function sfxNewRound(){playTone(440,.08,'sine',0.15)}
+function sfxClue(){playTone(800,.05,'sine',0.15)}
+
 function connect() {
   ws = new WebSocket(`${proto}://${location.host}`);
   ws.onopen = () => {};
@@ -89,6 +103,8 @@ function handle(m) {
 
   if (m.type === 'question') {
     show('play');
+    if(audioCtx.state==='suspended')audioCtx.resume();
+    sfxNewRound();
     $('roundInfo').textContent = `Round ${m.round}/${m.total}`;
     $('flag').textContent = m.flag;
     if (m.img) { $('landmark').src = m.img; $('landmark').style.display = 'block'; }
@@ -102,11 +118,13 @@ function handle(m) {
   }
 
   if (m.type === 'clue') {
+    sfxClue();
     $('clueList').innerHTML += `<div class="clue">💡 ${m.clue}</div>`;
     $('pointsHint').textContent = `⚡ ${m.points} pts`;
   }
 
   if (m.type === 'answer_result') {
+    m.correct ? sfxCorrect() : sfxWrong();
     document.querySelectorAll('.opt').forEach(b => {
       b.disabled = true;
       if (b.textContent === m.correctAnswer) b.classList.add('correct');

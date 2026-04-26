@@ -75,6 +75,21 @@ const proto = location.protocol === 'https:' ? 'wss' : 'ws';
 const ws = new WebSocket(`${proto}://${location.host}`);
 let selectedContinent = null;
 
+const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+function playTone(freq,dur,type='sine',vol=0.3){
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type=type;o.frequency.value=freq;g.gain.value=vol;
+  o.connect(g);g.connect(audioCtx.destination);
+  o.start();g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
+  o.stop(audioCtx.currentTime+dur);
+}
+function sfxCorrect(){playTone(523,.1);setTimeout(()=>playTone(659,.1),100);setTimeout(()=>playTone(784,.2),200)}
+function sfxWrong(){playTone(200,.15,'square',0.2);setTimeout(()=>playTone(150,.3,'square',0.2),150)}
+function sfxNewRound(){playTone(440,.08,'sine',0.15)}
+function sfxClue(){playTone(800,.05,'sine',0.15)}
+function sfxAllAnswered(){playTone(600,.1);setTimeout(()=>playTone(800,.15),120)}
+function sfxGameOver(){playTone(523,.1);setTimeout(()=>playTone(659,.1),120);setTimeout(()=>playTone(784,.1),240);setTimeout(()=>playTone(1047,.3),360)}
+
 const $ = id => document.getElementById(id);
 const joinUrl = `${location.origin}/play`;
 $('joinLink').href = joinUrl;
@@ -101,6 +116,8 @@ ws.onmessage = e => {
 
   if (m.type === 'question') {
     show('game');
+    if(audioCtx.state==='suspended')audioCtx.resume();
+    sfxNewRound();
     $('roundInfo').textContent = `Round ${m.round}/${m.total}`;
     $('flagArea').textContent = m.flag;
     if (m.img) { $('landmark').src = m.img; $('landmark').style.display = 'block'; }
@@ -118,11 +135,13 @@ ws.onmessage = e => {
   }
 
   if (m.type === 'clue') {
+    sfxClue();
     $('clueList').innerHTML += `<div class="clue">💡 ${m.clue}</div>`;
     $('pointsHint').textContent = `⚡ ${m.points} pts`;
   }
 
   if (m.type === 'player_answered') {
+    m.correct ? sfxCorrect() : sfxWrong();
     $('answeredFill').style.width = `${(m.answeredCount/m.totalPlayers)*100}%`;
     $('answerStatus').textContent = `${m.answeredCount}/${m.totalPlayers} answered`;
     $('scoreboard').innerHTML = m.players.map(p =>
@@ -131,6 +150,7 @@ ws.onmessage = e => {
   }
 
   if (m.type === 'all_answered') {
+    sfxAllAnswered();
     $('answerStatus').textContent = `Answer: ${m.correctAnswer}`;
     $('optionsArea').style.display = 'grid';
     document.querySelectorAll('.opt').forEach(el => {
@@ -145,6 +165,7 @@ ws.onmessage = e => {
 
   if (m.type === 'gameover') {
     show('results');
+    sfxGameOver();
     const medals = ['🥇','🥈','🥉'];
     $('resultList').innerHTML = m.players.map((p,i) =>
       `<li style="background:${p.color}">${medals[i]||'  '} ${p.name} <span>${p.score} pts</span></li>`
