@@ -4,20 +4,65 @@
 <title>🌍 Flag Game — Host</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:system-ui;background:#1a1a2e url('/gamebackground.png') center/cover fixed;color:#eee;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px}
-h1{font-size:2em;margin-bottom:10px}
-.screen{display:none;width:100%;max-width:800px;text-align:center}
+body{font-family:system-ui;background:#0a0e1a url('/gamebackground.png') center/cover fixed;color:#eee;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px}
+h1{font-size:2em;margin-bottom:10px;display:none}
+.screen{display:none;width:100%;max-width:900px;text-align:center}
 .screen.active{display:block}
-.join-url{background:#16213e;padding:15px 25px;border-radius:12px;font-size:1.3em;margin:15px 0;word-break:break-all}
-.join-url a{color:#3b82f6;text-decoration:none}
-.players{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:15px 0}
-.player-badge{padding:8px 16px;border-radius:20px;font-weight:bold;font-size:1.1em}
-.continents{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:15px 0}
-.cont-btn{padding:15px;border:none;border-radius:10px;background:#16213e;color:#eee;font-size:1.1em;cursor:pointer;transition:.2s}
-.cont-btn:hover{background:#1a3a5c}
-.cont-btn.selected{background:#3b82f6}
-.start-btn{padding:12px 40px;border:none;border-radius:10px;background:#22c55e;color:#fff;font-size:1.2em;cursor:pointer;margin-top:10px}
-.start-btn:disabled{opacity:.4;cursor:default}
+/* Hero */
+.lobby-hero{margin:10px 0 20px;position:relative}
+.hero-sub{font-size:.9em;letter-spacing:6px;color:#8899bb;margin-bottom:4px}
+.hero-title{font-size:3.5em;font-weight:900;line-height:1;margin:0;background:linear-gradient(180deg,#e8edf5 0%,#7ba4d4 40%,#4a7ab5 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none;filter:drop-shadow(0 4px 12px rgba(80,140,220,.3))}
+.hero-title span{color:#4a7ab5;background:linear-gradient(180deg,#a8c4e0 0%,#5b8ec9 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero-divider{color:#5b8ec9;font-size:.8em;margin:6px 0;letter-spacing:8px}
+.hero-tagline{font-size:.75em;letter-spacing:3px;color:#667799}
+.hero-sparkle{color:#5b8ec9;font-size:.7em;letter-spacing:10px;margin-bottom:2px}
+/* Join bar */
+.lobby-join-bar{background:rgba(16,22,40,.7);border:1px solid #1e2a45;border-radius:14px;padding:12px 20px;margin:0 auto 12px;max-width:500px}
+.lobby-join-link{color:#5b9ef6;text-decoration:none;font-size:1.1em;font-weight:600}
+.lobby-join-meta{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px}
+.lobby-music-btn{background:rgba(255,255,255,.05);border:1px solid #334;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:1.1em;color:#888;transition:.2s}
+.lobby-music-btn:hover{border-color:#5b8ec9;color:#5b8ec9}
+/* Game mode buttons */
+.game-modes{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin:20px 0 16px}
+.gm-btn{background:none;border:none;cursor:pointer;text-align:center;padding:0;transition:transform .2s}
+.gm-btn:hover{transform:scale(1.08)}
+.gm-btn.active .gm-icon{box-shadow:0 0 20px var(--gm-glow),inset 0 0 15px rgba(255,255,255,.05)}
+.gm-btn.active .gm-icon::after{opacity:1}
+.gm-icon{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--gm-color,#334);background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.08),transparent 70%),rgba(10,14,26,.8);position:relative;transition:.3s;margin:0 auto}
+.gm-icon::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--gm-color,#334);opacity:0;transition:.3s}
+.gm-icon span{font-size:2.2em;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
+.gm-label{font-size:.7em;letter-spacing:1px;margin-top:6px;color:var(--gm-color,#aaa);line-height:1.3}
+.gm-label strong{font-size:1.15em}
+/* Mode colors */
+.gm-trivia{--gm-color:#5b9ef6;--gm-glow:rgba(91,158,246,.4)}
+.gm-map{--gm-color:#34d399;--gm-glow:rgba(52,211,153,.4)}
+.gm-capital{--gm-color:#f59e0b;--gm-glow:rgba(245,158,11,.4)}
+.gm-flag{--gm-color:#a78bfa;--gm-glow:rgba(167,139,250,.4)}
+.gm-us{--gm-color:#ef4444;--gm-glow:rgba(239,68,68,.4)}
+.gm-local{--gm-color:#f472b6;--gm-glow:rgba(244,114,182,.4)}
+/* Options bar & toggle buttons */
+.options-bar{margin:0 auto 12px;max-width:600px}
+.opt-group{display:flex;align-items:center;gap:10px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+.opt-label{color:#667;font-size:.85em;min-width:70px;text-align:right}
+.toggle-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.tog-btn{padding:6px 14px;border:1px solid #2a3550;border-radius:20px;background:rgba(16,22,40,.6);color:#8899bb;font-size:.85em;cursor:pointer;transition:.2s}
+.tog-btn:hover{border-color:#5b8ec9;color:#ccc}
+.tog-btn.active{border-color:#5b9ef6;background:rgba(91,158,246,.15);color:#5b9ef6}
+/* Mode panels */
+.mode-panel{margin-top:12px;animation:fadeIn .3s}
+.panel-title{font-size:1em;color:#8899bb;margin-bottom:8px;letter-spacing:1px}
+.panel-desc{color:#667;font-size:.9em;margin:8px 0}
+.checkbox-label{display:block;margin-top:8px;color:#8899bb;font-size:.9em}
+.checkbox-label input{margin-right:6px}
+/* Continent buttons - upgraded */
+.continents{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:10px 0}
+.cont-btn{padding:12px;border:1px solid #2a3550;border-radius:12px;background:rgba(16,22,40,.6);color:#8899bb;font-size:.95em;cursor:pointer;transition:.2s;letter-spacing:.5px}
+.cont-btn:hover{border-color:#5b8ec9;color:#ccc;background:rgba(30,42,70,.6)}
+.cont-btn.selected{border-color:#5b9ef6;background:rgba(91,158,246,.15);color:#5b9ef6;box-shadow:0 0 12px rgba(91,158,246,.2)}
+/* Start button - upgraded */
+.start-btn{padding:12px 40px;border:none;border-radius:12px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:1.1em;font-weight:600;cursor:pointer;margin-top:14px;letter-spacing:1px;transition:.2s;box-shadow:0 4px 15px rgba(34,197,94,.3)}
+.start-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(34,197,94,.4)}
+.start-btn:disabled{opacity:.3;cursor:default;transform:none;box-shadow:none}
 .flag{font-size:6em;margin:10px 0}
 .landmark{max-width:350px;max-height:200px;border-radius:12px;margin:10px auto;display:block}
 .clues{text-align:left;max-width:500px;margin:10px auto}
@@ -56,116 +101,152 @@ h1{font-size:2em;margin-bottom:10px}
 </head><body>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://d3js.org/topojson.v3.min.js"></script>
-<h1>🌍 Guess the Country!</h1>
+<h1 id="mainTitle">🌍 Guess the Country!</h1>
 
 <div id="lobby" class="screen active">
-  <div class="join-url">Players join at: <a id="joinLink" href="#" target="_blank"></a></div>
-  <img id="qrCode" style="margin:10px auto;display:block;border-radius:12px" width="200" height="200">
-  <p class="status">Waiting for players... <button id="musicBtn" onclick="toggleMusic()" style="background:none;border:1px solid #555;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:1em;color:#888;margin-left:10px">🔇 Music</button></p>
-  <div id="lobbyPlayers" class="players"></div>
-
-  <h3 style="margin-top:20px">Game Mode:</h3>
-  <div class="lang-toggle" style="margin-bottom:15px">
-    <button class="lang-btn active" onclick="setGameMode('trivia')">🌍 Country Trivia</button>
-    <button class="lang-btn" onclick="setGameMode('map')">🗺️ Map Quiz</button>
-    <button class="lang-btn" onclick="setGameMode('capital')">🏛️ Capital City</button>
-    <button class="lang-btn" onclick="setGameMode('flagquiz')">🏁 Flag Quiz</button>
-    <button class="lang-btn" onclick="setGameMode('usmap')">🇺🇸 US States</button>
-    <button class="lang-btn" onclick="setGameMode('local')">📍 Local Explorer</button>
+  <!-- Hero Title -->
+  <div class="lobby-hero">
+    <div class="hero-sparkle">✦</div>
+    <p class="hero-sub">WELCOME TO THE</p>
+    <h2 class="hero-title">TRIVIA<br><span>LOBBY</span></h2>
+    <div class="hero-divider">✦</div>
+    <p class="hero-tagline">CHOOSE A GAME. TEST YOUR KNOWLEDGE. HAVE FUN!</p>
   </div>
 
-  <div style="margin-bottom:12px">
-    <span style="color:#888">Questions:</span>
-    <div class="lang-toggle" id="roundsSelect">
-      <button class="lang-btn" onclick="pickRounds(5)">5</button>
-      <button class="lang-btn active" onclick="pickRounds(10)">10</button>
-      <button class="lang-btn" onclick="pickRounds(15)">15</button>
-      <button class="lang-btn" onclick="pickRounds(20)">20</button>
-      <button class="lang-btn" onclick="pickRounds(0)">All</button>
+  <!-- Join Info -->
+  <div class="lobby-join-bar">
+    <a id="joinLink" href="#" target="_blank" class="lobby-join-link"></a>
+    <img id="qrCode" width="120" height="120" style="border-radius:10px;margin:8px auto;display:block">
+    <div class="lobby-join-meta">
+      <span id="lobbyPlayerCount" style="color:#888">Waiting for players...</span>
+      <button id="musicBtn" onclick="toggleMusic()" class="lobby-music-btn">🔇</button>
+    </div>
+  </div>
+  <div id="lobbyPlayers" class="players"></div>
+
+  <!-- Game Mode Icons -->
+  <div class="game-modes">
+    <button class="gm-btn active" data-mode="trivia" onclick="setGameMode('trivia')">
+      <div class="gm-icon gm-trivia"><span>🌍</span></div>
+      <div class="gm-label"><strong>COUNTRY</strong><br>TRIVIA</div>
+    </button>
+    <button class="gm-btn" data-mode="map" onclick="setGameMode('map')">
+      <div class="gm-icon gm-map"><span>🗺️</span></div>
+      <div class="gm-label"><strong>MAP</strong><br>QUIZ</div>
+    </button>
+    <button class="gm-btn" data-mode="capital" onclick="setGameMode('capital')">
+      <div class="gm-icon gm-capital"><span>🏛️</span></div>
+      <div class="gm-label"><strong>CAPITAL</strong><br>CITY</div>
+    </button>
+    <button class="gm-btn" data-mode="flagquiz" onclick="setGameMode('flagquiz')">
+      <div class="gm-icon gm-flag"><span>🏁</span></div>
+      <div class="gm-label"><strong>FLAG</strong><br>QUIZ</div>
+    </button>
+    <button class="gm-btn" data-mode="usmap" onclick="setGameMode('usmap')">
+      <div class="gm-icon gm-us"><span>🇺🇸</span></div>
+      <div class="gm-label"><strong>US</strong><br>STATES</div>
+    </button>
+    <button class="gm-btn" data-mode="local" onclick="setGameMode('local')">
+      <div class="gm-icon gm-local"><span>📍</span></div>
+      <div class="gm-label"><strong>LOCAL</strong><br>EXPLORER</div>
+    </button>
+  </div>
+
+  <!-- Shared Options Bar -->
+  <div class="options-bar">
+    <div class="opt-group">
+      <span class="opt-label">Questions</span>
+      <div class="toggle-row" id="roundsSelect">
+        <button class="tog-btn" onclick="pickRounds(5)">5</button>
+        <button class="tog-btn active" onclick="pickRounds(10)">10</button>
+        <button class="tog-btn" onclick="pickRounds(15)">15</button>
+        <button class="tog-btn" onclick="pickRounds(20)">20</button>
+        <button class="tog-btn" onclick="pickRounds(0)">All</button>
+      </div>
     </div>
   </div>
 
-  <div id="triviaOptions">
-    <h3>Pick a continent:</h3>
+  <div id="triviaOptions" class="mode-panel">
+    <h3 class="panel-title">Pick a continent:</h3>
     <div id="continents" class="continents"></div>
-    <label style="margin-top:10px;display:block"><input type="checkbox" id="showFlags" checked> Show flags</label>
-    <div style="margin-top:10px">
-      <span style="color:#888">Timer:</span>
-      <div class="lang-toggle" id="timerSelect">
-        <button class="lang-btn active" onclick="pickTimer(0)">No timer</button>
-        <button class="lang-btn" onclick="pickTimer(15)">15s</button>
-        <button class="lang-btn" onclick="pickTimer(20)">20s</button>
-        <button class="lang-btn" onclick="pickTimer(30)">30s</button>
+    <label class="checkbox-label"><input type="checkbox" id="showFlags" checked> Show flags</label>
+    <div class="opt-group" style="margin-top:10px">
+      <span class="opt-label">Timer</span>
+      <div class="toggle-row" id="timerSelect">
+        <button class="tog-btn active" onclick="pickTimer(0)">No timer</button>
+        <button class="tog-btn" onclick="pickTimer(15)">15s</button>
+        <button class="tog-btn" onclick="pickTimer(20)">20s</button>
+        <button class="tog-btn" onclick="pickTimer(30)">30s</button>
       </div>
     </div>
     <button id="startBtn" class="start-btn" disabled>Start Game</button>
   </div>
 
-  <div id="mapOptions" style="display:none;margin-top:10px">
-    <p style="color:#888;margin:10px 0">Identify countries by their shape on the map!</p>
-    <h3>Pick a continent:</h3>
+  <div id="mapOptions" class="mode-panel" style="display:none">
+    <p class="panel-desc">Identify countries by their shape on the map!</p>
+    <h3 class="panel-title">Pick a continent:</h3>
     <div id="mapContinents" class="continents"></div>
-    <div style="margin-top:10px">
-      <span style="color:#888">Timer:</span>
-      <div class="lang-toggle" id="mapTimerSelect">
-        <button class="lang-btn active" onclick="pickMapTimer(0)">No timer</button>
-        <button class="lang-btn" onclick="pickMapTimer(15)">15s</button>
-        <button class="lang-btn" onclick="pickMapTimer(20)">20s</button>
-        <button class="lang-btn" onclick="pickMapTimer(30)">30s</button>
+    <div class="opt-group" style="margin-top:10px">
+      <span class="opt-label">Timer</span>
+      <div class="toggle-row" id="mapTimerSelect">
+        <button class="tog-btn active" onclick="pickMapTimer(0)">No timer</button>
+        <button class="tog-btn" onclick="pickMapTimer(15)">15s</button>
+        <button class="tog-btn" onclick="pickMapTimer(20)">20s</button>
+        <button class="tog-btn" onclick="pickMapTimer(30)">30s</button>
       </div>
     </div>
     <button id="mapStartBtn" class="start-btn" disabled onclick="startMap()">Start Map Quiz</button>
   </div>
 
-  <div id="capitalOptions" style="display:none;margin-top:10px">
-    <p style="color:#888;margin:10px 0">Name the capital city of each country!</p>
-    <h3>Pick a continent:</h3>
+  <div id="capitalOptions" class="mode-panel" style="display:none">
+    <p class="panel-desc">Name the capital city of each country!</p>
+    <h3 class="panel-title">Pick a continent:</h3>
     <div id="capitalContinents" class="continents"></div>
-    <div style="margin-top:10px">
-      <span style="color:#888">Timer:</span>
-      <div class="lang-toggle" id="capitalTimerSelect">
-        <button class="lang-btn active" onclick="pickCapitalTimer(0)">No timer</button>
-        <button class="lang-btn" onclick="pickCapitalTimer(15)">15s</button>
-        <button class="lang-btn" onclick="pickCapitalTimer(20)">20s</button>
-        <button class="lang-btn" onclick="pickCapitalTimer(30)">30s</button>
+    <div class="opt-group" style="margin-top:10px">
+      <span class="opt-label">Timer</span>
+      <div class="toggle-row" id="capitalTimerSelect">
+        <button class="tog-btn active" onclick="pickCapitalTimer(0)">No timer</button>
+        <button class="tog-btn" onclick="pickCapitalTimer(15)">15s</button>
+        <button class="tog-btn" onclick="pickCapitalTimer(20)">20s</button>
+        <button class="tog-btn" onclick="pickCapitalTimer(30)">30s</button>
       </div>
     </div>
     <button id="capitalStartBtn" class="start-btn" disabled onclick="startCapital()">Start Capital City</button>
   </div>
 
-  <div id="flagquizOptions" style="display:none;margin-top:10px">
-    <p style="color:#888;margin:10px 0">Pick the correct flag for each country!</p>
-    <h3>Pick a continent:</h3>
+  <div id="flagquizOptions" class="mode-panel" style="display:none">
+    <p class="panel-desc">Pick the correct flag for each country!</p>
+    <h3 class="panel-title">Pick a continent:</h3>
     <div id="flagquizContinents" class="continents"></div>
-    <div style="margin-top:10px">
-      <span style="color:#888">Timer:</span>
-      <div class="lang-toggle" id="flagquizTimerSelect">
-        <button class="lang-btn active" onclick="pickFlagquizTimer(0)">No timer</button>
-        <button class="lang-btn" onclick="pickFlagquizTimer(15)">15s</button>
-        <button class="lang-btn" onclick="pickFlagquizTimer(20)">20s</button>
-        <button class="lang-btn" onclick="pickFlagquizTimer(30)">30s</button>
+    <div class="opt-group" style="margin-top:10px">
+      <span class="opt-label">Timer</span>
+      <div class="toggle-row" id="flagquizTimerSelect">
+        <button class="tog-btn active" onclick="pickFlagquizTimer(0)">No timer</button>
+        <button class="tog-btn" onclick="pickFlagquizTimer(15)">15s</button>
+        <button class="tog-btn" onclick="pickFlagquizTimer(20)">20s</button>
+        <button class="tog-btn" onclick="pickFlagquizTimer(30)">30s</button>
       </div>
     </div>
     <button id="flagquizStartBtn" class="start-btn" disabled onclick="startFlagquiz()">Start Flag Quiz</button>
   </div>
 
-  <div id="usmapOptions" style="display:none;margin-top:10px">
-    <p style="color:#888;margin:10px 0">Identify US states by their shape on the map!</p>
-    <p id="usmapCount" style="color:#aaa;font-size:.9em"></p>
-    <div style="margin-top:10px">
-      <span style="color:#888">Timer:</span>
-      <div class="lang-toggle" id="usmapTimerSelect">
-        <button class="lang-btn active" onclick="pickUsmapTimer(0)">No timer</button>
-        <button class="lang-btn" onclick="pickUsmapTimer(15)">15s</button>
-        <button class="lang-btn" onclick="pickUsmapTimer(20)">20s</button>
-        <button class="lang-btn" onclick="pickUsmapTimer(30)">30s</button>
+  <div id="usmapOptions" class="mode-panel" style="display:none">
+    <p class="panel-desc">Identify US states by their shape on the map!</p>
+    <p id="usmapCount" class="panel-desc" style="font-size:.9em"></p>
+    <div class="opt-group" style="margin-top:10px">
+      <span class="opt-label">Timer</span>
+      <div class="toggle-row" id="usmapTimerSelect">
+        <button class="tog-btn active" onclick="pickUsmapTimer(0)">No timer</button>
+        <button class="tog-btn" onclick="pickUsmapTimer(15)">15s</button>
+        <button class="tog-btn" onclick="pickUsmapTimer(20)">20s</button>
+        <button class="tog-btn" onclick="pickUsmapTimer(30)">30s</button>
       </div>
     </div>
     <button id="usmapStartBtn" class="start-btn" onclick="startUsmap()">Start US States</button>
   </div>
 
-  <div id="localOptions" style="display:none;margin-top:10px">
-    <p style="color:#888;margin:10px 0">How well do you know Issaquah, Bellevue, Sammamish & Seattle?</p>
+  <div id="localOptions" class="mode-panel" style="display:none">
+    <p class="panel-desc">How well do you know Issaquah, Bellevue, Sammamish & Seattle?</p>
     <button class="start-btn" onclick="startLocal()">Start Local Explorer</button>
   </div>
 </div>
@@ -246,11 +327,11 @@ function pickCapitalContinent(c) {
 }
 function pickMapTimer(s) {
   selectedTimer = s;
-  document.querySelectorAll('#mapTimerSelect .lang-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
+  document.querySelectorAll('#mapTimerSelect .tog-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
 }
 function pickCapitalTimer(s) {
   selectedTimer = s;
-  document.querySelectorAll('#capitalTimerSelect .lang-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
+  document.querySelectorAll('#capitalTimerSelect .tog-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
 }
 function startMap() {
   if (!selectedMapContinent) return;
@@ -267,7 +348,7 @@ function pickFlagquizContinent(c) {
 }
 function pickFlagquizTimer(s) {
   selectedTimer = s;
-  document.querySelectorAll('#flagquizTimerSelect .lang-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
+  document.querySelectorAll('#flagquizTimerSelect .tog-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
 }
 function startFlagquiz() {
   if (!selectedFlagquizContinent) return;
@@ -275,7 +356,7 @@ function startFlagquiz() {
 }
 function pickUsmapTimer(s) {
   selectedTimer = s;
-  document.querySelectorAll('#usmapTimerSelect .lang-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
+  document.querySelectorAll('#usmapTimerSelect .tog-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
 }
 function startUsmap() {
   ws.send(JSON.stringify({ type:'start', gameType:'usmap', timer: selectedTimer, rounds: selectedRounds || 999 }));
@@ -317,18 +398,16 @@ function setGameMode(mode) {
   $('flagquizOptions').style.display = mode==='flagquiz' ? 'block' : 'none';
   $('usmapOptions').style.display = mode==='usmap' ? 'block' : 'none';
   $('localOptions').style.display = mode==='local' ? 'block' : 'none';
-  document.querySelectorAll('.lang-toggle')[0].querySelectorAll('.lang-btn').forEach(b =>
-    b.classList.toggle('active', (mode==='trivia'&&b.textContent.includes('Country'))||(mode==='map'&&b.textContent.includes('Map'))||(mode==='capital'&&b.textContent.includes('Capital'))||(mode==='flagquiz'&&b.textContent.includes('Flag'))||(mode==='usmap'&&b.textContent.includes('US'))||(mode==='local'&&b.textContent.includes('Local')))
-  );
+  document.querySelectorAll('.gm-btn').forEach(b => b.classList.toggle('active', b.dataset.mode===mode));
 }
 
 function pickTimer(s) {
   selectedTimer = s;
-  document.querySelectorAll('#timerSelect .lang-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
+  document.querySelectorAll('#timerSelect .tog-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === s || (s===0 && b.textContent==='No timer')));
 }
 function pickRounds(n) {
   selectedRounds = n;
-  document.querySelectorAll('#roundsSelect .lang-btn').forEach(b => b.classList.toggle('active', (n===0 && b.textContent==='All') || parseInt(b.textContent)===n));
+  document.querySelectorAll('#roundsSelect .tog-btn').forEach(b => b.classList.toggle('active', (n===0 && b.textContent==='All') || parseInt(b.textContent)===n));
 }
 
 function connectWs() {
@@ -369,8 +448,8 @@ let musicOn=false;
 let lobbyMusicTimer=null;
 function toggleMusic(){
   musicOn=!musicOn;
-  $('musicBtn').textContent=musicOn?'🔊 Music':'🔇 Music';
-  $('musicBtn').style.color=musicOn?'#f59e0b':'#888';
+  $('musicBtn').textContent=musicOn?'🔊':'🔇';
+  $('musicBtn').style.borderColor=musicOn?'#5b8ec9':'#334';
   if(musicOn){audioCtx.resume().then(()=>sfxLobbyMusic());}else{stopLobbyMusic();}
 }
 function sfxLobbyMusic(){
