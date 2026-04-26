@@ -247,6 +247,7 @@ function connectWs() {
 connectWs();
 
 const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+document.addEventListener('click',function unlockAudio(){audioCtx.resume().then(()=>sfxLobbyMusic());document.removeEventListener('click',unlockAudio);},{once:true});
 function playTone(freq,dur,type='sine',vol=0.3){
   const o=audioCtx.createOscillator(),g=audioCtx.createGain();
   o.type=type;o.frequency.value=freq;g.gain.value=vol;
