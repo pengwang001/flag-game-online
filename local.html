@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>📍 Local Explorer — WA Edition</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui;background:#1a1a2e url('/gamebackground.png') center/cover fixed;color:#eee;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px}
+h1{font-size:1.8em;margin-bottom:5px}
+.screen{display:none;width:100%;max-width:700px;text-align:center}
+.screen.active{display:block}
+.clues{text-align:left;max-width:550px;margin:10px auto}
+.clue{padding:10px 14px;margin:5px 0;background:rgba(22,33,62,.85);border-radius:10px;animation:fadeIn .4s}
+.clue img{max-width:100%;max-height:200px;border-radius:8px;margin-top:6px;display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.options{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:500px;margin:15px auto}
+.opt{padding:14px;border:2px solid #333;border-radius:10px;background:rgba(22,33,62,.85);color:#eee;font-size:1.1em;cursor:pointer;transition:.15s}
+.opt:hover{border-color:#3b82f6}
+.opt.correct{border-color:#22c55e;background:rgba(22,51,46,.9)}
+.opt.wrong{border-color:#ef4444;background:rgba(51,22,22,.9)}
+.opt:disabled{cursor:default;opacity:.7}
+.score-bar{font-size:1.2em;margin:10px 0;color:#f59e0b}
+.points-hint{color:#f59e0b;font-size:1.1em;margin:5px 0}
+.result{font-size:1.3em;margin:10px 0;padding:12px;border-radius:10px}
+.result.correct{background:rgba(22,51,46,.9);color:#22c55e}
+.result.wrong{background:rgba(51,22,22,.9);color:#ef4444}
+.next-btn{padding:10px 30px;border:none;border-radius:8px;background:#3b82f6;color:#fff;font-size:1.1em;cursor:pointer;margin-top:10px}
+.start-btn{padding:14px 40px;border:none;border-radius:10px;background:#22c55e;color:#fff;font-size:1.2em;cursor:pointer;margin-top:15px}
+.final-list{list-style:none;max-width:400px;margin:15px auto}
+.final-list li{padding:10px;margin:5px 0;border-radius:8px;background:rgba(22,33,62,.85);display:flex;justify-content:space-between;font-size:1.1em}
+.reveal-btn{padding:6px 16px;border:1px solid #555;border-radius:8px;background:transparent;color:#3b82f6;cursor:pointer;margin-top:8px;font-size:.9em}
+</style>
+</head><body>
+<h1>📍 Local Explorer</h1>
+<a href="/" style="color:#3b82f6;text-decoration:none;font-size:.9em">← Back to main</a>
+
+<div id="menu" class="screen active">
+  <p style="color:#888;margin:15px 0">How well do you know your neighborhood?</p>
+  <p style="color:#aaa;font-size:.95em">🏔️ Issaquah · Bellevue · Sammamish · Seattle</p>
+  <button class="start-btn" onclick="startGame()">Start (12 rounds)</button>
+</div>
+
+<div id="game" class="screen">
+  <div class="score-bar" id="scoreBar"></div>
+  <div class="points-hint" id="pointsHint"></div>
+  <div id="clueList" class="clues"></div>
+  <button class="reveal-btn" id="revealBtn" onclick="revealNext()">Show next clue 💡</button>
+  <div id="options" class="options"></div>
+  <div id="feedback"></div>
+  <button class="next-btn" id="nextBtn" style="display:none" onclick="nextRound()">Next →</button>
+</div>
+
+<div id="results" class="screen">
+  <h2>🏆 Results</h2>
+  <ul id="resultList" class="final-list"></ul>
+  <button class="next-btn" onclick="location.reload()">Play Again</button>
+</div>
+
+<script>
+const MAX_CLUES = 5;
+
+// Clue format: string = text, {img:"url",caption:"text"} = image clue
+const CITIES = [
+  {name:"Issaquah", clues:[
+    "This city's name comes from a Native American word meaning 'the sound of birds'",
+    {img:"https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400&h=250&fit=crop",caption:"Tiger Mountain trails are a local favorite"},
+    "Home to Costco's headquarters",
+    "Salmon Days festival celebrates the return of salmon every October",
+    {img:"https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=400&h=250&fit=crop",caption:"The Salmon Hatchery is a popular family visit"},
+    "Located at the base of the Cascades foothills along I-90",
+    "Gilman Village is a charming shopping area in converted farm buildings"
+  ]},
+  {name:"Issaquah", clues:[
+    "Poo Poo Point is a famous paragliding launch site here",
+    "Lake Sammamish State Park is at the north end of this city",
+    {img:"https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&h=250&fit=crop",caption:"Hikers flock to this city's mountain trails year-round"},
+    "The historic downtown has a small-town feel with local shops",
+    "Boehm's Chocolates has been making Swiss chocolates here since 1956",
+    "Triple XXX Rootbeer is a legendary drive-in restaurant here",
+    "This city is part of the 'Eastside' suburbs of Seattle"
+  ]},
+  {name:"Bellevue", clues:[
+    "Its name means 'beautiful view' in French",
+    "Downtown has a skyline that rivals many major cities",
+    {img:"https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400&h=250&fit=crop",caption:"A growing skyline with luxury high-rises"},
+    "Bellevue Square (The Bravern) is a premier shopping destination",
+    "Home to T-Mobile's headquarters",
+    "Meydenbauer Bay was the original settlement area",
+    "The city's population has more than doubled since 2000"
+  ]},
+  {name:"Bellevue", clues:[
+    "The Downtown Park has a circular 240-foot wide waterfall",
+    "This city has one of the highest-rated school districts in WA",
+    "Crossroads Mall has a famous international food court",
+    {img:"https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=250&fit=crop",caption:"The diverse food scene ranges from Din Tai Fung to local gems"},
+    "Microsoft and Meta have major offices here",
+    "KidsQuest Children's Museum is a family favorite",
+    "Located between Lake Washington and Lake Sammamish"
+  ]},
+  {name:"Bellevue", clues:[
+    "The Bellevue Arts Museum is in the heart of downtown",
+    "Main Street is lined with restaurants and boutiques in Old Bellevue",
+    "Chism Beach Park offers swimming on Lake Washington",
+    "The Spring District is a massive new mixed-use development",
+    {img:"https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=250&fit=crop",caption:"Light rail now connects this city to Seattle"},
+    "Mercer Slough Nature Park is 320 acres of wetlands in the city",
+    "The annual Snowflake Lane holiday parade draws huge crowds"
+  ]},
+  {name:"Sammamish", clues:[
+    "Named after the lake on its western border",
+    "One of the wealthiest cities in Washington state",
+    "Beaver Lake Park is a popular spot for fishing and picnics",
+    "Pine Lake is entirely within city limits",
+    {img:"https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=400&h=250&fit=crop",caption:"Known for its spacious suburban lots and green spaces"},
+    "The Sammamish Plateau was mostly farmland until the 1990s",
+    "Incorporated as a city in 1999, one of WA's newest cities"
+  ]},
+  {name:"Sammamish", clues:[
+    "Ebright Creek runs through this city",
+    "Big Rock Park has a massive glacial erratic boulder",
+    "The city has extensive trail systems connecting neighborhoods",
+    "Klahanie is one of the largest master-planned communities here",
+    "Evans Creek Preserve is a 168-acre nature area",
+    {img:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&h=250&fit=crop",caption:"Suburban homes with mountain views are the norm here"},
+    "This city consistently ranks among the safest in WA"
+  ]},
+  {name:"Seattle", clues:[
+    "The Space Needle was built for the 1962 World's Fair",
+    {img:"https://images.unsplash.com/photo-1502175353174-a7a70e73b362?w=400&h=250&fit=crop",caption:"This iconic tower defines the city skyline"},
+    "Pike Place Market is one of the oldest farmers' markets in the US",
+    "The first Starbucks opened here in 1971",
+    "Known as the Emerald City for its lush greenery",
+    "Home to Amazon, Boeing, and Starbucks headquarters",
+    "Kurt Cobain and Jimi Hendrix both called this city home"
+  ]},
+  {name:"Seattle", clues:[
+    "The Fremont Troll sculpture lives under the Aurora Bridge",
+    "Capitol Hill is the heart of the city's nightlife and arts scene",
+    {img:"https://images.unsplash.com/photo-1470004914212-05527e49370b?w=400&h=250&fit=crop",caption:"Ferries crisscross the waters around this city"},
+    "It rains less annually than New York City (the reputation is a myth!)",
+    "The Underground Tour reveals the buried original city streets",
+    "Gas Works Park offers skyline views from a former gasification plant",
+    "Bruce Lee is buried in this city's Capitol Hill neighborhood"
+  ]},
+  {name:"Seattle", clues:[
+    "Alki Beach is where the first settlers landed in 1851",
+    "The Museum of Pop Culture (MoPOP) was designed by Frank Gehry",
+    "Ballard was once an independent Scandinavian fishing village",
+    {img:"https://images.unsplash.com/photo-1542223616-740d5dff7f56?w=400&h=250&fit=crop",caption:"Fresh seafood and flying fish at a famous market"},
+    "The city has more dogs than children",
+    "Discovery Park is 534 acres with a lighthouse on Puget Sound",
+    "The Great Wheel on the waterfront is 175 feet tall"
+  ]},
+  {name:"Issaquah", clues:[
+    "Cougar Mountain Regional Wildland Park borders this city",
+    "The Issaquah Alps include Tiger, Squak, and Cougar mountains",
+    "Pickering Barn is a historic venue for events and farmers markets",
+    {img:"https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=250&fit=crop",caption:"Old-growth forests surround this foothill city"},
+    "The city's population tripled between 1990 and 2020",
+    "Tradition Plateau has easy family-friendly hiking trails",
+    "Located about 15 miles east of Seattle via I-90"
+  ]},
+  {name:"Sammamish", clues:[
+    "Soaring Eagle Regional Park has 600 acres of forest trails",
+    "The city has no real downtown or commercial center",
+    "Surrounded by Issaquah, Redmond, and unincorporated King County",
+    "Beaver Lake is stocked with trout for fishing",
+    {img:"https://images.unsplash.com/photo-1523712999610-f77fbcfc3843?w=400&h=250&fit=crop",caption:"Forested trails and nature preserves define this quiet city"},
+    "Many tech workers live here and commute to Redmond or Bellevue",
+    "The Sammamish Commons is the closest thing to a town center"
+  ]}
+];
+
+let questions=[], round=0, score=0, currentQ=null, clueIdx=0;
+const $=id=>document.getElementById(id);
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+// Audio
+const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+function playTone(f,d,t='sine',v=.3){const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=t;o.frequency.value=f;g.gain.value=v;o.connect(g);g.connect(audioCtx.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+d);o.stop(audioCtx.currentTime+d)}
+function sfxCorrect(){playTone(523,.1);setTimeout(()=>playTone(659,.1),100);setTimeout(()=>playTone(784,.2),200)}
+function sfxWrong(){playTone(200,.15,'square',.2);setTimeout(()=>playTone(150,.3,'square',.2),150)}
+function sfxClue(){playTone(800,.05,'sine',.15)}
+
+function startGame(){
+  questions=shuffle([...CITIES]).slice(0,12);
+  round=0;score=0;
+  show('game');
+  showRound();
+}
+
+function renderClue(c){
+  if(typeof c==='string') return `<div class="clue">💡 ${c}</div>`;
+  return `<div class="clue">📸 ${c.caption}<img src="${c.img}" alt="${c.caption}"></div>`;
+}
+
+function showRound(){
+  if(round>=questions.length){endGame();return}
+  currentQ=questions[round];
+  const clues=shuffle([...currentQ.clues]);
+  currentQ._clues=clues;
+  clueIdx=0;
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  playTone(440,.08,'sine',.15);
+
+  $('scoreBar').textContent=`Round ${round+1}/${questions.length} — Score: ${score}`;
+  $('pointsHint').textContent=`⚡ ${MAX_CLUES} pts (fewer clues = more points)`;
+  $('clueList').innerHTML=renderClue(clues[0]);
+  clueIdx=1;
+  $('revealBtn').style.display='inline-block';
+  $('feedback').innerHTML='';
+  $('nextBtn').style.display='none';
+
+  const cities=["Issaquah","Bellevue","Sammamish","Seattle"];
+  $('options').innerHTML=cities.map(c=>
+    `<button class="opt" onclick="guess(this,'${c}')">${c}</button>`
+  ).join('');
+}
+
+function revealNext(){
+  if(clueIdx>=Math.min(MAX_CLUES,currentQ._clues.length)){$('revealBtn').style.display='none';return}
+  sfxClue();
+  $('clueList').innerHTML+=renderClue(currentQ._clues[clueIdx]);
+  clueIdx++;
+  $('pointsHint').textContent=`⚡ ${Math.max(1,MAX_CLUES-clueIdx+1)} pts`;
+  if(clueIdx>=Math.min(MAX_CLUES,currentQ._clues.length))$('revealBtn').style.display='none';
+}
+
+function guess(btn,city){
+  document.querySelectorAll('.opt').forEach(b=>b.disabled=true);
+  $('revealBtn').style.display='none';
+  const correct=city===currentQ.name;
+  if(correct){
+    btn.classList.add('correct');
+    const pts=Math.max(1,MAX_CLUES-clueIdx+1);
+    score+=pts;
+    sfxCorrect();
+    $('feedback').innerHTML=`<div class="result correct">✅ Correct! +${pts} — ${currentQ.name}</div>`;
+    $('scoreBar').textContent=`Round ${round+1}/${questions.length} — Score: ${score}`;
+  }else{
+    btn.classList.add('wrong');
+    sfxWrong();
+    document.querySelectorAll('.opt').forEach(b=>{if(b.textContent===currentQ.name)b.classList.add('correct')});
+    $('feedback').innerHTML=`<div class="result wrong">❌ It was ${currentQ.name}</div>`;
+  }
+  $('nextBtn').style.display='inline-block';
+}
+
+function nextRound(){round++;showRound()}
+
+function endGame(){
+  show('results');
+  const max=questions.length*MAX_CLUES;
+  $('resultList').innerHTML=`
+    <li>🎯 Score: ${score} / ${max} (${Math.round(score/max*100)}%)</li>
+    <li>📍 Cities: Issaquah, Bellevue, Sammamish, Seattle</li>
+    <li>❓ Rounds: ${questions.length}</li>
+  `;
+}
+
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')}
+</script>
+</body></html>
