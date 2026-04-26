@@ -31,6 +31,13 @@ input{width:100%;padding:14px;border:1px solid #2a3550;border-radius:12px;backgr
 .result.correct{background:#16332e;color:#22c55e}
 .result.wrong{background:#331616;color:#ef4444}
 .waiting{color:#667799;font-size:1em;margin:15px 0}
+.confetti-container{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999;overflow:hidden}
+.confetti{position:absolute;width:8px;height:8px;top:-10px;animation:confettiFall linear forwards}
+@keyframes confettiFall{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+.winner-banner{animation:winnerPop .6s ease-out;text-align:center;margin:10px 0}
+@keyframes winnerPop{0%{transform:scale(0);opacity:0}50%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+.winner-glow{font-size:1.8em;font-weight:900;animation:winnerGlow 1s ease-in-out infinite alternate}
+@keyframes winnerGlow{from{text-shadow:0 0 10px #f59e0b,0 0 20px #f59e0b}to{text-shadow:0 0 20px #f59e0b,0 0 40px #ef4444}}
 .status{font-size:.85em;color:#556;margin:5px 0}
 .final-list{list-style:none;margin:15px 0}
 .final-list li{padding:10px;margin:5px 0;border-radius:8px;display:flex;justify-content:space-between;font-size:1.1em}
@@ -134,6 +141,8 @@ function sfxCorrect(){playTone(523,.1);setTimeout(()=>playTone(659,.1),100);setT
 function sfxWrong(){playTone(200,.15,'square',0.2);setTimeout(()=>playTone(150,.3,'square',0.2),150)}
 function sfxNewRound(){playTone(440,.08,'sine',0.15)}
 function sfxClue(){playTone(800,.05,'sine',0.15)}
+function sfxVictory(){playTone(523,.15);setTimeout(()=>playTone(659,.15),150);setTimeout(()=>playTone(784,.15),300);setTimeout(()=>playTone(1047,.3),450)}
+function spawnConfetti(){const c=document.createElement('div');c.className='confetti-container';document.body.appendChild(c);const colors=['#ef4444','#f59e0b','#22c55e','#3b82f6','#a855f7','#ec4899'];for(let i=0;i<50;i++){const p=document.createElement('div');p.className='confetti';p.style.left=Math.random()*100+'%';p.style.background=colors[Math.floor(Math.random()*colors.length)];p.style.animationDuration=(2+Math.random()*2)+'s';p.style.animationDelay=Math.random()*1.5+'s';p.style.borderRadius=Math.random()>.5?'50%':'0';c.appendChild(p)}setTimeout(()=>c.remove(),5000)}
 
 let allMapFeatures = null;
 fetch('/countries-110m.json').then(r=>r.json()).then(data=>{
@@ -160,6 +169,7 @@ connect();
 $('joinBtn').onclick = () => {
   const name = $('nameInput').value.trim();
   if (!name) { $('joinError').textContent = t('enterName'); return; }
+  window._myName = name;
   ws.send(JSON.stringify({ type: 'join', name }));
 };
 $('nameInput').onkeydown = e => { if (e.key === 'Enter') $('joinBtn').click(); };
@@ -275,11 +285,23 @@ function handle(m) {
 
   if (m.type === 'gameover') {
     show('gameover');
-    $('gameoverTitle').textContent = t('gameover');
+    const isWinner = m.players.length > 0 && m.players[0].name === window._myName;
+    $('gameoverTitle').textContent = isWinner ? (lang==='zh'?'🏆 你赢了！':'🏆 You Win!') : t('gameover');
     const medals = ['🥇','🥈','🥉'];
-    $('finalList').innerHTML = m.players.map((p,i) =>
-      `<li style="background:${p.color}">${medals[i]||'  '} ${p.name} <span>${p.score} ${t('pts')}</span></li>`
-    ).join('');
+    if (isWinner) {
+      $('finalList').innerHTML =
+        `<div class="winner-banner"><div class="winner-glow">🏆 ${lang==='zh'?'冠军！':'Champion!'}</div></div>` +
+        m.players.map((p,i) =>
+          `<li style="background:${p.color}">${medals[i]||'  '} ${p.name} <span>${p.score} ${t('pts')}</span></li>`
+        ).join('');
+      spawnConfetti();
+      sfxVictory();
+      setTimeout(spawnConfetti, 2000);
+    } else {
+      $('finalList').innerHTML = m.players.map((p,i) =>
+        `<li style="background:${p.color}">${medals[i]||'  '} ${p.name} <span>${p.score} ${t('pts')}</span></li>`
+      ).join('');
+    }
     if (m.leaderboard && m.leaderboard.length) {
       $('leaderList').innerHTML = m.leaderboard.map((e,i) =>
         `<li style="background:${i<3?'rgba(245,158,11,.15)':'rgba(22,33,62,.85)'}"><span>${i+1}. ${e.name}</span><span>${e.score} ${t('pts')}</span></li>`
