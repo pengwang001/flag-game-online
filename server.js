@@ -34,11 +34,17 @@ let clueTimer = null;
 let autoAdvanceTimer = null;
 let roundTimer = null;
 let timerSec = 0;
+let roundStartTime = 0;
 const MAX_CLUES = 5;
 const CLUE_INTERVAL = 5000; // 5s between clues
 
 function activePlayers() { return players.filter(p => p.ws && p.ws.readyState === 1); }
 function activeCount() { return activePlayers().length; }
+function mapPoints() {
+  if (!timerSec) return 1;
+  const elapsed = (Date.now() - roundStartTime) / 1000;
+  return Math.max(1, MAX_CLUES - Math.floor((elapsed / timerSec) * (MAX_CLUES - 1)));
+}
 
 function broadcast(msg) {  const s = JSON.stringify(msg);
   if (hostWs?.readyState === 1) hostWs.send(s);
@@ -111,7 +117,7 @@ function sendQuestion() {
     base = {
       type: 'question', gameType: 'map', round: questionIdx + 1, total: countries.length,
       topoName: q.name, continent,
-      options: currentQuestion.options, points: 1, timer: timerSec,
+      options: currentQuestion.options, points: timerSec ? MAX_CLUES : 1, timer: timerSec,
     };
   } else if (gameType === 'local') {
     const clues = shuffle([...q.clues]);
@@ -123,6 +129,7 @@ function sendQuestion() {
     };
   }
 
+  roundStartTime = Date.now();
   sendTo(hostWs, { ...base, solo: players.length === 0, players: players.map(p => ({ id: p.id, name: p.name, score: p.score, color: p.color })) });
   players.forEach(p => sendTo(p.ws, base));
 
@@ -289,7 +296,7 @@ wss.on('connection', (ws) => {
       clearInterval(clueTimer);
       clearInterval(roundTimer);
       const correct = msg.answer === currentQuestion.name;
-      const pts = correct ? (gameType === 'map' ? 1 : Math.max(1, MAX_CLUES - clueIdx + 1)) : 0;
+      const pts = correct ? (gameType === 'map' ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1)) : 0;
       soloScore += pts;
       sendTo(hostWs, { type: 'solo_result', correct, correctAnswer: currentQuestion.name, pts, totalScore: soloScore });
       autoAdvanceTimer = setTimeout(() => { questionIdx++; sendQuestion(); }, 3000);
@@ -299,7 +306,7 @@ wss.on('connection', (ws) => {
       answered.add(playerId);
       const correct = msg.answer === currentQuestion.name;
       const p = players.find(x => x.id === playerId);
-      if (correct && p) p.score += gameType === 'map' ? 1 : Math.max(1, MAX_CLUES - clueIdx + 1);
+      if (correct && p) p.score += gameType === 'map' ? mapPoints() : Math.max(1, MAX_CLUES - clueIdx + 1);
 
       sendTo(hostWs, {
         type: 'player_answered', playerId, name: p?.name, answer: msg.answer, correct,
