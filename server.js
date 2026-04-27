@@ -427,10 +427,11 @@ wss.on('connection', (ws) => {
 
     if (msg.type === 'next' && isHost && state === 'playing') { clearTimeout(autoAdvanceTimer); clearInterval(roundTimer); questionIdx++; sendQuestion(); }
     if (msg.type === 'back_to_lobby' && isHost) { state = 'lobby'; players.forEach(p => p.score = 0); lobbyState(); }
-    if (msg.type === 'kick' && isHost && msg.playerId) {
-      const kicked = players.find(x => x.id === msg.playerId);
+    if (msg.type === 'kick' && isHost && msg.playerId != null) {
+      const kid = Number(msg.playerId);
+      const kicked = players.find(x => x.id === kid);
       if (kicked?.ws) sendTo(kicked.ws, { type: 'kicked' });
-      players = players.filter(x => x.id !== msg.playerId);
+      players = players.filter(x => x.id !== kid);
       if (state === 'lobby') lobbyState();
     }
   });
