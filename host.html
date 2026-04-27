@@ -720,11 +720,14 @@ function handleMsg(e) {
   if (m.type === 'solo_result') {
     soloScore = m.totalScore;
     m.correct ? sfxCorrect() : sfxWrong();
+    const mapDN2 = {"United States of America":"United States","Dominican Rep.":"Dominican Republic","Czechia":"Czech Republic","Bosnia and Herz.":"Bosnia","Macedonia":"North Macedonia"};
+    const dispAnswer = mapDN2[m.correctAnswer] || m.correctAnswer;
     document.querySelectorAll('.opt').forEach(el => {
-      if (el.textContent === m.correctAnswer) el.classList.add('correct');
+      const txt = el.textContent.trim();
+      if (txt === m.correctAnswer || txt === dispAnswer) el.classList.add('correct');
       else if (el.style.borderColor) el.classList.add('wrong');
     });
-    $('answerStatus').textContent = m.correct ? `✅ Correct! +${m.pts}` : `❌ It was ${m.correctAnswer}`;
+    $('answerStatus').textContent = m.correct ? `✅ Correct! +${m.pts}` : `❌ It was ${dispAnswer}`;
     $('scoreboard').innerHTML = `<div class="score-card" style="background:#3b82f6">Score: ${soloScore}</div>`;
     let sec = 3; $('nextBtn').style.display = 'inline-block'; $('nextBtn').textContent = `Next (${sec}s)`;
     const cd = setInterval(() => { sec--; if(sec>0) $('nextBtn').textContent=`Next (${sec}s)`; else clearInterval(cd); }, 1000);
@@ -760,12 +763,15 @@ function handleMsg(e) {
   if (m.type === 'timeout') {
     playTone(300,.15,'sawtooth',0.25);setTimeout(()=>playTone(200,.15,'sawtooth',0.25),150);setTimeout(()=>playTone(100,.4,'sawtooth',0.25),300);
     $('timerWrap').style.display='none';
-    $('answerStatus').textContent = `⏰ Time's up! Answer: ${m.correctAnswer}`;
+    const mapDN3 = {"United States of America":"United States","Dominican Rep.":"Dominican Republic","Czechia":"Czech Republic","Bosnia and Herz.":"Bosnia","Macedonia":"North Macedonia"};
+    const dispAns = mapDN3[m.correctAnswer] || m.correctAnswer;
+    $('answerStatus').textContent = `⏰ Time's up! Answer: ${dispAns}`;
     $('optionsArea').style.display = 'grid';
     document.querySelectorAll('.opt').forEach(el => {
-      if (el.textContent === m.correctAnswer) el.classList.add('correct'); else el.classList.add('wrong');
+      const txt = el.textContent.trim();
+      if (txt === m.correctAnswer || txt === dispAns) el.classList.add('correct'); else el.classList.add('wrong');
     });
-    $('scoreboard').innerHTML = m.players.map(p => `<div class="score-card" style="background:${p.color}">${p.name}: ${p.score}</div>`).join('');
+    $('scoreboard').innerHTML = m.players.length ? m.players.map(p => `<div class="score-card" style="background:${p.color}">${p.name}: ${p.score}</div>`).join('') : `<div class="score-card" style="background:#3b82f6">Score: ${soloScore}</div>`;
     let sec = 3; $('nextBtn').style.display = 'inline-block'; $('nextBtn').textContent = `Next (${sec}s)`;
     const cd = setInterval(() => { sec--; if(sec>0) $('nextBtn').textContent=`Next (${sec}s)`; else clearInterval(cd); }, 1000);
   }
@@ -777,9 +783,9 @@ function handleMsg(e) {
       if (el.textContent === m.correctAnswer) el.classList.add('correct');
       else el.classList.add('wrong');
     });
-    $('scoreboard').innerHTML = m.players.map(p =>
+    $('scoreboard').innerHTML = m.players.length ? m.players.map(p =>
       `<div class="score-card" style="background:${p.color}">${p.name}: ${p.score}</div>`
-    ).join('');
+    ).join('') : `<div class="score-card" style="background:#3b82f6">Score: ${soloScore}</div>`;
     // Countdown to auto-advance
     let sec = m.autoAdvance || 3;
     $('nextBtn').style.display = 'inline-block';
