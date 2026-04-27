@@ -609,7 +609,7 @@ function handleMsg(e) {
     if(m.players.length > lastPlayerCount && lastPlayerCount > 0) sfxPlayerJoin();
     lastPlayerCount = m.players.length;
     $('lobbyPlayers').innerHTML = m.players.map(p =>
-      `<div class="player-badge" style="background:${p.color}">${p.name}</div>`
+      `<div class="player-badge" style="background:${p.color}">${p.name} <span style="cursor:pointer;margin-left:6px;opacity:.6" onclick="ws.send(JSON.stringify({type:'kick',playerId:'${p.id}'}));this.parentElement.remove()" title="Remove player">✕</span></div>`
     ).join('') || '<p style="color:#666">No players yet</p>';
     if (m.continents) {
       $('continents').innerHTML = m.continents.map(c =>

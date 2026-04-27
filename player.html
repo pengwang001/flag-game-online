@@ -288,6 +288,11 @@ function handle(m) {
     });
   }
 
+  if (m.type === 'kicked') {
+    show('gameover');
+    $('gameoverTitle').textContent = lang==='zh'?'你已被移出游戏':'You were removed from the game';
+    return;
+  }
   if (m.type === 'gameover') {
     show('gameover');
     const isWinner = m.players.length > 0 && m.players[0].name === window._myName;
