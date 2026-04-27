@@ -407,7 +407,7 @@ wss.on('connection', (ws) => {
 
       sendTo(hostWs, {
         type: 'player_answered', playerId, name: p?.name, answer: msg.answer, correct,
-        answeredCount: answered.size, totalPlayers: players.length,
+        answeredCount: answered.size, totalPlayers: activeCount(),
         players: players.map(p => ({ id: p.id, name: p.name, score: p.score, color: p.color })),
       });
       sendTo(ws, { type: 'answer_result', correct, correctAnswer: currentQuestion.name });
@@ -442,6 +442,29 @@ wss.on('connection', (ws) => {
       if (state === 'lobby') {
         players = players.filter(x => x.id !== playerId);
         lobbyState();
+      }
+      // Mid-game: check if all remaining active players have answered
+      if (state === 'playing' && activeCount() > 0 && answered.size >= activeCount()) {
+        clearInterval(clueTimer);
+        clearInterval(roundTimer);
+        sendTo(hostWs, {
+          type: 'all_answered', correctAnswer: currentQuestion.name,
+          players: players.map(p => ({ id: p.id, name: p.name, score: p.score, color: p.color })),
+          autoAdvance: 3,
+        });
+        players.forEach(p => sendTo(p.ws, { type: 'all_answered', correctAnswer: currentQuestion.name, autoAdvance: 3 }));
+        autoAdvanceTimer = setTimeout(() => { questionIdx++; sendQuestion(); }, 3000);
+      }
+      // Mid-game: if ALL players left, end the game
+      if (state === 'playing' && activeCount() === 0) {
+        clearInterval(clueTimer);
+        clearInterval(roundTimer);
+        clearTimeout(autoAdvanceTimer);
+        state = 'lobby';
+        const sorted = [...players].sort((a,b) => b.score - a.score);
+        if (sorted.length > 0) addToLeaderboard(sorted[0].name, sorted[0].score, continent);
+        broadcast({ type: 'gameover', players: sorted.map(p => ({ name: p.name, score: p.score, color: p.color })), leaderboard, soloScore });
+        players = [];
       }
     }
   });
